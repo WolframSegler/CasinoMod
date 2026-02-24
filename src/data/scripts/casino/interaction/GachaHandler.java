@@ -360,7 +360,7 @@ public class GachaHandler {
             "Cancel",
             10,
             7,
-            88,
+            80,
             true,
             true,
             obtainedShips,
@@ -414,7 +414,7 @@ public class GachaHandler {
         main.textPanel.addPara("Current Ship Pool (" + potentialDrops.size() + " ships):", Color.CYAN);
         main.textPanel.addPara("These are the ships currently available in the gacha pool.", Color.GRAY);
 
-        main.getDialog().showFleetMemberPickerDialog("View Ship Pool:", null, "Back", 10, 7, 88, false, false, potentialDrops,
+        main.getDialog().showFleetMemberPickerDialog("View Ship Pool:", null, "Back", 10, 7, 80, false, false, potentialDrops,
             new FleetMemberPickerListener() {
                 public void pickedFleetMembers(List<FleetMemberAPI> members) {
                      showGachaMenu();

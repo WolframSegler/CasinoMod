@@ -525,7 +525,7 @@ public class FinHandler {
     private List<FleetMemberAPI> pendingShipTrade = null;
 
     private void openShipTradePicker() {
-        main.getDialog().showFleetMemberPickerDialog("Select ships to sell for Stargems:", "Review Trade", "Cancel", 10, 7, 88, true, true, Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy(),
+        main.getDialog().showFleetMemberPickerDialog("Select ships to sell for Stargems:", "Review Trade", "Cancel", 10, 7, 80, true, true, Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy(),
             new FleetMemberPickerListener() {
                 public void pickedFleetMembers(List<FleetMemberAPI> members) {
                      if (members != null && !members.isEmpty()) {
