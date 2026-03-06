@@ -549,9 +549,9 @@ CasinoVIPManager.addToBalance(-additionalAmount);
     }
 
     private void startArenaBattle(int chosenIdx) {
-        if (chosenIdx < 0 || chosenIdx >= arenaCombatants.size()) {
+if (chosenIdx < 0 || chosenIdx >= arenaCombatants.size()) {
             main.textPanel.addPara("Error: Invalid champion selection. Returning to lobby.", Color.RED);
-            showArenaLobby();
+            showArenaVisualPanel();
             return;
         }
 
@@ -639,8 +639,8 @@ opponentsDefeated = 0;
             return;
         }
         
-        if (currentDelegate.getPendingReturnToLobby()) {
-            showArenaLobby();
+if (currentDelegate.getPendingReturnToLobby()) {
+            showArenaVisualPanel();
             return;
         }
         
@@ -1203,11 +1203,11 @@ if (chosenChampion == null) {
     private void restoreSuspendedArena() {
         com.fs.starfarer.api.campaign.rules.MemoryAPI mem = Global.getSector().getMemoryWithoutUpdate();
 
-        // Check if there's a suspended arena
+// Check if there's a suspended arena
         String suspendedGameType = mem.getString(MEM_SUSPENDED_GAME_TYPE);
         if (!"Arena".equals(suspendedGameType)) {
             main.getTextPanel().addPara("No suspended arena game found.", Color.RED);
-            showArenaLobby();
+            showArenaVisualPanel();
             return;
         }
 
