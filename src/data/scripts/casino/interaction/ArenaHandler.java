@@ -463,13 +463,13 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
             return;
         }
 
-        CasinoVIPManager.addToBalance(-additionalAmount);
+CasinoVIPManager.addToBalance(-additionalAmount);
 
         float frozenOdds = chosenChampion.getCurrentOdds(currentRound);
         arenaBets.add(new BetInfo(additionalAmount, frozenOdds, chosenChampion, currentRound));
         cachedTotalBet += additionalAmount;
 
-        main.textPanel.addPara("Added " + additionalAmount + " Stargems to your bet at " + String.format("%.1f", frozenOdds) + "x odds. Total bet: " + getCurrentTotalBet() + " Stargems.", Color.GREEN);
+        // main.textPanel.addPara("Added " + additionalAmount + " Stargems to your bet at " + String.format("%.1f", frozenOdds) + "x odds. Total bet: " + getCurrentTotalBet() + " Stargems.", Color.GREEN);
         showAddBetMenu();
     }
     
@@ -559,8 +559,8 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
 opponentsDefeated = 0;
         currentRound = 1;
 
-        main.textPanel.setFontInsignia();
-        main.textPanel.addPara("The battle begins! Your champions enter the arena:", Color.CYAN);
+        // main.textPanel.setFontInsignia();
+        // main.textPanel.addPara("The battle begins! Your champions enter the arena:", Color.CYAN);
 
         Set<SpiralAbyssArena.SpiralGladiator> betShips = new HashSet<>();
         for (BetInfo bet : arenaBets) {
@@ -569,20 +569,20 @@ opponentsDefeated = 0;
             }
         }
 
-        for (SpiralAbyssArena.SpiralGladiator ship : betShips) {
-            String prefixText = ship.prefix + " ";
-            String hullNameText = ship.hullName + " ";
-            String affixText = ship.affix;
-            String betText = " (Bet: " + getBetAmountForShip(ship) + " Stargems)";
-            String betAmountStr = getBetAmountForShip(ship) + " Stargems";
-
-            String fullText = "  - " + prefixText + hullNameText + affixText + betText;
-            main.textPanel.addPara(fullText);
-
-            applyShipHighlighting(ship, fullText, betAmountStr, Color.YELLOW);
-        }
+        // for (SpiralAbyssArena.SpiralGladiator ship : betShips) {
+        //     String prefixText = ship.prefix + " ";
+        //     String hullNameText = ship.hullName + " ";
+        //     String affixText = ship.affix;
+        //     String betText = " (Bet: " + getBetAmountForShip(ship) + " Stargems)";
+        //     String betAmountStr = getBetAmountForShip(ship) + " Stargems";
+        //
+        //     String fullText = "  - " + prefixText + hullNameText + affixText + betText;
+        //     main.textPanel.addPara(fullText);
+        //
+        //     applyShipHighlighting(ship, fullText, betAmountStr, Color.YELLOW);
+        // }
         
-main.textPanel.addPara("Total Bet: " + totalBet + " Stargems", Color.YELLOW);
+        // main.textPanel.addPara("Total Bet: " + totalBet + " Stargems", Color.YELLOW);
         
         showArenaVisualPanel();
     }
@@ -671,7 +671,7 @@ private boolean simulateArenaStep() {
         }
 
         for (String logEntry : logEntries) {
-            processLogEntry(logEntry);
+            // processLogEntry(logEntry);
             battleLog.add(logEntry);
         }
         
@@ -1094,11 +1094,11 @@ CasinoVIPManager.addToBalance(-additionalAmount);
         arenaBets.add(new BetInfo(additionalAmount, frozenOdds, targetChampion, currentRound));
         cachedTotalBet += additionalAmount;
 
-        if (chosenChampion == null) {
+if (chosenChampion == null) {
             chosenChampion = targetChampion;
         }
 
-        main.getTextPanel().addPara("Added bet of " + additionalAmount + " Stargems on " + targetChampion.fullName + " at " + String.format("%.1f", frozenOdds) + "x odds.", Color.YELLOW);
+        // main.getTextPanel().addPara("Added bet of " + additionalAmount + " Stargems on " + targetChampion.fullName + " at " + String.format("%.1f", frozenOdds) + "x odds.", Color.YELLOW);
         showArenaVisualPanel();
     }
     
