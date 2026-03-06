@@ -367,6 +367,11 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
         }
 
         if (activeArena == null || arenaCombatants == null || arenaCombatants.isEmpty()) {
+            if (cachedTotalBet > 0) {
+                CasinoVIPManager.addToBalance(cachedTotalBet);
+                cachedTotalBet = 0;
+                arenaBets.clear();
+            }
             activeArena = new SpiralAbyssArena();
             arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
             currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
@@ -385,6 +390,11 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
         }
 
         if (activeArena == null || arenaCombatants == null || arenaCombatants.isEmpty()) {
+            if (cachedTotalBet > 0) {
+                CasinoVIPManager.addToBalance(cachedTotalBet);
+                cachedTotalBet = 0;
+                arenaBets.clear();
+            }
             activeArena = new SpiralAbyssArena();
             arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
             currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
@@ -620,6 +630,11 @@ opponentsDefeated = 0;
         }
         
         if (currentDelegate.getPendingLeave()) {
+            if (currentRound == 0 && cachedTotalBet > 0) {
+                CasinoVIPManager.addToBalance(cachedTotalBet);
+                cachedTotalBet = 0;
+                arenaBets.clear();
+            }
             main.showMenu();
             return;
         }
