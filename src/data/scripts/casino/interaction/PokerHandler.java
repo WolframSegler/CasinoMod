@@ -468,12 +468,6 @@ private String formatBB(int amount, int bigBlind) {
                     break;
             }
             
-            if (response.action == PokerGame.SimplePokerAI.Action.FOLD) {
-                if (state.playerBet > state.opponentBet) {
-                    pokerGame.getAI().trackAIFoldedToPlayerBet(state.pot);
-                }
-            }
-            
             pokerGame.processOpponentAction(response);
             
             state = pokerGame.getState();
@@ -537,7 +531,7 @@ private String formatBB(int amount, int bigBlind) {
             main.getOptions().addOption("Check", "poker_check");
         }
         
-        if (state.playerStack > 0 && state.opponentBet - state.playerBet < state.playerStack) {
+if (state.playerStack > 0 && state.opponentStack > 0 && state.opponentBet - state.playerBet < state.playerStack) {
             main.getOptions().addOption("Raise", "poker_raise_menu");
         }
         
@@ -616,15 +610,7 @@ private void startNextHand() {
                      main.getTextPanel().addPara("Opponent folds.", Color.CYAN); break;
              }
              
-             // Track if AI is folding to a player bet (for anti-gullibility)
-             if (response.action == PokerGame.SimplePokerAI.Action.FOLD) {
-                 // Only track if player has bet (not when checking through)
-                 if (state.playerBet > state.opponentBet) {
-                     pokerGame.getAI().trackAIFoldedToPlayerBet(state.pot);
-                 }
-             }
-             
-             pokerGame.processOpponentAction(response);
+pokerGame.processOpponentAction(response);
              
              // Re-check state after opponent action
              state = pokerGame.getState();
@@ -874,16 +860,7 @@ mem.unset("$ipc_suspended_game_type");
 
         int cmp = playerScore.compareTo(oppScore);
 
-        // Track showdown for anti-gullibility AI
-        // Check if player was bluffing (had weak hand but AI folded earlier)
-        boolean playerWasBluffing = false;
-        if (cmp < 0) {
-            // Player lost - they were bluffing if they had weak hand
-            playerWasBluffing = playerScore.rank.value <= PokerGame.PokerGameLogic.HandRank.PAIR.value;
-        }
-        pokerGame.getAI().trackPlayerShowdown(playerWasBluffing);
-
-        if (cmp > 0) {
+if (cmp > 0) {
             main.getTextPanel().addPara("VICTORY! You take the pot.", Color.CYAN);
             state.lastPotWon = state.pot;
             state.playerStack += state.pot; // Award pot to player stack

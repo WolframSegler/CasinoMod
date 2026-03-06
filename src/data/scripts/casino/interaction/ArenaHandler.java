@@ -686,9 +686,7 @@ private boolean simulateArenaStep() {
 
         RewardCalculation rewards = calculateRewards(betShips);
 
-        displayBattleResults(rewards, betShips);
-        displayPerformanceSummary(betShips, rewards.totalBet);
-        displayNetResult(rewards);
+        CasinoVIPManager.addToBalance(rewards.totalWinReward + rewards.totalConsolationReward);
 
         int winnerIndex = -1;
         for (int i = 0; i < arenaCombatants.size(); i++) {
@@ -702,6 +700,8 @@ private boolean simulateArenaStep() {
         finalWinnerIndex = winnerIndex;
         finalReward = rewards.totalWinReward + rewards.totalConsolationReward;
 
+        ArenaPanelUI.RewardBreakdown breakdown = buildRewardBreakdown(betShips, rewards);
+
         currentDelegate = new ArenaDialogDelegate(
             arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog,
             main.getDialog(), null, () -> {
@@ -709,8 +709,36 @@ private boolean simulateArenaStep() {
             }
         );
         
-        currentDelegate.setBattleEnded(winnerIndex, rewards.totalWinReward + rewards.totalConsolationReward);
+        currentDelegate.setBattleEnded(winnerIndex, finalReward, breakdown);
         main.getDialog().showCustomVisualDialog(1000f, 700f, currentDelegate);
+    }
+
+    private ArenaPanelUI.RewardBreakdown buildRewardBreakdown(Set<SpiralAbyssArena.SpiralGladiator> betShips, RewardCalculation rewards) {
+        ArenaPanelUI.RewardBreakdown breakdown = new ArenaPanelUI.RewardBreakdown();
+        breakdown.totalBet = rewards.totalBet;
+        breakdown.winReward = rewards.totalWinReward;
+        breakdown.consolationReward = rewards.totalConsolationReward;
+        breakdown.totalReward = rewards.totalWinReward + rewards.totalConsolationReward;
+        breakdown.netResult = breakdown.totalReward - rewards.totalBet;
+
+        float consolationMultiplier = CasinoConfig.ARENA_DEFEATED_CONSOLATION_MULT;
+
+        for (SpiralAbyssArena.SpiralGladiator ship : betShips) {
+            int betAmount = getBetAmountForShip(ship);
+            int shipReward = 0;
+
+            if (!ship.isDead) {
+                shipReward = calculateWinReward(ship);
+            } else {
+                shipReward = calculateConsolationReward(ship, consolationMultiplier);
+            }
+
+            breakdown.shipRewards.add(new ArenaPanelUI.RewardBreakdown.ShipRewardInfo(
+                ship.hullName, betAmount, ship.kills, ship.finalPosition, !ship.isDead, shipReward
+            ));
+        }
+
+        return breakdown;
     }
     
     protected boolean battleEnded = false;
