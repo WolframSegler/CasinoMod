@@ -388,8 +388,11 @@ private String formatBB(int amount, int bigBlind) {
         
         if (currentDelegate.getPendingFlipTable()) {
             handleLeaveTable();
-            MemoryAPI mem = Global.getSector().getMemoryWithoutUpdate();
-            mem.set(POKER_COOLDOWN_KEY, Global.getSector().getClock().getTimestamp());
+            if (handsPlayedThisSession < MIN_HANDS_BEFORE_LEAVE) {
+                MemoryAPI mem = Global.getSector().getMemoryWithoutUpdate();
+                mem.set(POKER_COOLDOWN_KEY, Global.getSector().getClock().getTimestamp());
+                main.getTextPanel().addPara("The IPC Dealer makes a note in their ledger. 'Leaving so soon? The IPC Credit Facility remembers early departures.'", Color.YELLOW);
+            }
             return;
         }
     }
@@ -431,15 +434,18 @@ private String formatBB(int amount, int bigBlind) {
     }
     
     private void processOpponentTurnAndContinue() {
-        if (pokerGame == null) return;
-        PokerGame.PokerState state = pokerGame.getState();
-        
-        if (state.round == PokerGame.Round.SHOWDOWN) {
-            determineWinner();
-            return;
-        }
-        
-        if (state.currentPlayer == PokerGame.CurrentPlayer.OPPONENT) {
+        while (pokerGame != null) {
+            PokerGame.PokerState state = pokerGame.getState();
+            
+            if (state.round == PokerGame.Round.SHOWDOWN) {
+                determineWinner();
+                return;
+            }
+            
+            if (state.currentPlayer != PokerGame.CurrentPlayer.OPPONENT) {
+                break;
+            }
+            
             PokerGame.SimplePokerAI.AIResponse response = pokerGame.getOpponentAction();
             
             String opponentActionText = "";
@@ -540,19 +546,18 @@ private String formatBB(int amount, int bigBlind) {
         main.getOptions().addOption("Flip Table and Leave", "poker_abandon_confirm");
     }
 
-    private void startNextHand() {
+private void startNextHand() {
         if (pokerGame != null) {
             PokerGame.PokerState state = pokerGame.getState();
             if (state.playerStack <= 0 || state.opponentStack <= 0) {
-                 // Game over logic if someone is bust
-                 main.textPanel.addPara("One of the players is out of chips. Starting new game...", Color.YELLOW);
-                 setupGame(state.playerStack > 0 ? state.playerStack : 1000); // Simplistic restart
-                 return;
+                main.textPanel.addPara("One of the players is out of chips. Starting new game...", Color.YELLOW);
+                setupGame(state.playerStack > 0 ? state.playerStack : 1000);
+                return;
             }
-pokerGame.startNewHand();
-        handsPlayedThisSession++;
-        processOpponentTurnAndContinue();
-    }
+            pokerGame.startNewHand();
+            handsPlayedThisSession++;
+            processOpponentTurnAndContinue();
+        }
     }
 
     public void handlePokerCall() {
@@ -977,7 +982,6 @@ mem.unset("$ipc_suspended_game_type");
     }
     
     private void handleLeaveTable() {
-        // Clean up any remaining chips when leaving (normal exit or bust)
         if (pokerGame != null) {
             int stackToReturn = pokerGame.getState().playerStack;
             if (stackToReturn > 0) {
@@ -989,16 +993,7 @@ mem.unset("$ipc_suspended_game_type");
             pokerGame = null;
         }
 
-        // Set cooldown if player left early (played less than minimum required hands)
-        if (handsPlayedThisSession < MIN_HANDS_BEFORE_LEAVE) {
-            MemoryAPI mem = Global.getSector().getMemoryWithoutUpdate();
-            mem.set(POKER_COOLDOWN_KEY, Global.getSector().getClock().getTimestamp());
-            main.getTextPanel().addPara("The IPC Dealer makes a note in their ledger. 'Leaving so soon? The IPC Credit Facility remembers early departures.'", Color.YELLOW);
-        }
-
         handsPlayedThisSession = 0;
-        
-        // Clear any suspended game memory since player is intentionally leaving
         clearSuspendedGameMemory();
         currentDelegate = null;
 
@@ -1044,12 +1039,9 @@ handsPlayedThisSession = 0;
             showPokerVisualPanel();
         } else if (state.opponentStack < CasinoConfig.POKER_BIG_BLIND) {
             main.getTextPanel().addPara("Opponent is out of chips! You win!", Color.GREEN);
-            returnStacks();
-            clearSuspendedGameMemory();
-            pokerGame = null;
-            handsPlayedThisSession = 0;
             main.getOptions().clearOptions();
             main.getOptions().addOption("Leave Table", "back_menu");
+            showPokerVisualPanel();
         } else {
             main.getOptions().clearOptions();
             main.getOptions().addOption("Next Hand", "next_hand");

@@ -556,8 +556,8 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
             cachedTotalBet += CasinoConfig.ARENA_ENTRY_FEE;
         }
 
-        opponentsDefeated = 0;
-        currentRound = 0;
+opponentsDefeated = 0;
+        currentRound = 1;
 
         main.textPanel.setFontInsignia();
         main.textPanel.addPara("The battle begins! Your champions enter the arena:", Color.CYAN);
@@ -589,7 +589,7 @@ main.textPanel.addPara("Total Bet: " + totalBet + " Stargems", Color.YELLOW);
     
     private void showArenaVisualPanel() {
         currentDelegate = new ArenaDialogDelegate(
-            arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets,
+            arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog,
             main.getDialog(), null, () -> {
                 handleArenaPanelDismissed();
             }
@@ -703,7 +703,7 @@ private boolean simulateArenaStep() {
         finalReward = rewards.totalWinReward + rewards.totalConsolationReward;
 
         currentDelegate = new ArenaDialogDelegate(
-            arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets,
+            arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog,
             main.getDialog(), null, () -> {
                 handleArenaPanelDismissed();
             }
@@ -1061,10 +1061,14 @@ private void resetArenaState() {
             return;
         }
 
-        CasinoVIPManager.addToBalance(-additionalAmount);
+CasinoVIPManager.addToBalance(-additionalAmount);
         float frozenOdds = targetChampion.getCurrentOdds(currentRound);
         arenaBets.add(new BetInfo(additionalAmount, frozenOdds, targetChampion, currentRound));
         cachedTotalBet += additionalAmount;
+
+        if (chosenChampion == null) {
+            chosenChampion = targetChampion;
+        }
 
         main.getTextPanel().addPara("Added bet of " + additionalAmount + " Stargems on " + targetChampion.fullName + " at " + String.format("%.1f", frozenOdds) + "x odds.", Color.YELLOW);
         showArenaVisualPanel();
