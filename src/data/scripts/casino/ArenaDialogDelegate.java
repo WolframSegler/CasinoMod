@@ -1,0 +1,271 @@
+package data.scripts.casino;
+
+import java.util.List;
+import java.util.Map;
+
+import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.campaign.CustomUIPanelPlugin;
+import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate;
+import com.fs.starfarer.api.campaign.InteractionDialogAPI;
+import com.fs.starfarer.api.campaign.rules.MemoryAPI;
+import com.fs.starfarer.api.impl.campaign.rulecmd.FireBest;
+import com.fs.starfarer.api.ui.CustomPanelAPI;
+
+import data.scripts.casino.interaction.ArenaHandler.BetInfo;
+
+public class ArenaDialogDelegate implements CustomVisualDialogDelegate {
+    
+    protected DialogCallbacks callbacks;
+    protected boolean finished = false;
+    protected boolean battleEnded = false;
+    
+    protected ArenaPanelUI arenaPanel;
+    protected InteractionDialogAPI dialog;
+    protected Map<String, MemoryAPI> memoryMap;
+    
+    protected Runnable onDismissCallback;
+    
+    protected List<SpiralAbyssArena.SpiralGladiator> combatants;
+    protected int currentRound;
+    protected int totalBet;
+    protected List<BetInfo> bets;
+    protected List<String> battleLog;
+    
+    protected boolean pendingLeave = false;
+    protected boolean pendingReturnToLobby = false;
+    protected boolean pendingWatchNext = false;
+    protected boolean pendingSkipToEnd = false;
+    protected boolean pendingSuspend = false;
+    protected boolean pendingStartBattle = false;
+    protected int pendingBetAmount = 0;
+    protected int pendingChampionIndex = -1;
+    
+    protected int winnerIndex = -1;
+    protected int totalReward = 0;
+    
+    public ArenaDialogDelegate(
+            List<SpiralAbyssArena.SpiralGladiator> combatants,
+            int currentRound,
+            int totalBet,
+            List<BetInfo> bets,
+            List<String> battleLog,
+            InteractionDialogAPI dialog,
+            Map<String, MemoryAPI> memoryMap,
+            Runnable onDismissCallback) {
+        
+        this.combatants = combatants;
+        this.currentRound = currentRound;
+        this.totalBet = totalBet;
+        this.bets = bets;
+        this.battleLog = battleLog;
+        this.dialog = dialog;
+        this.memoryMap = memoryMap;
+        this.onDismissCallback = onDismissCallback;
+        
+        ArenaPanelUI.ArenaActionCallback actionCallback = new ArenaPanelUI.ArenaActionCallback() {
+            @Override
+            public void onSelectChampion(int championIndex) {
+                pendingChampionIndex = championIndex;
+            }
+            
+            @Override
+            public void onConfirmBet(int championIndex, int amount) {
+                pendingChampionIndex = championIndex;
+                pendingBetAmount = amount;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+            
+            @Override
+            public void onWatchNextRound() {
+                pendingWatchNext = true;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+            
+            @Override
+            public void onSkipToEnd() {
+                pendingSkipToEnd = true;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+            
+            @Override
+            public void onAddBetToChampion(int championIndex, int amount) {
+                pendingChampionIndex = championIndex;
+                pendingBetAmount = amount;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+            
+            @Override
+            public void onSuspend() {
+                pendingSuspend = true;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+            
+            @Override
+            public void onLeave() {
+                pendingLeave = true;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+            
+            @Override
+            public void onReturnToLobby() {
+                pendingReturnToLobby = true;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+            
+            @Override
+            public void onStartBattle() {
+                pendingStartBattle = true;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
+        };
+        
+        arenaPanel = new ArenaPanelUI(combatants, currentRound, totalBet, bets, battleLog, actionCallback);
+    }
+    
+    public CustomUIPanelPlugin getCustomPanelPlugin() {
+        return arenaPanel;
+    }
+    
+    public void init(CustomPanelAPI panel, DialogCallbacks callbacks) {
+        this.callbacks = callbacks;
+        
+        callbacks.getPanelFader().setDurationOut(0.5f);
+        
+        if (arenaPanel != null) {
+            arenaPanel.init(panel, callbacks, dialog);
+        }
+    }
+    
+    public float getNoiseAlpha() {
+        return 0.2f;
+    }
+    
+    public void advance(float amount) {
+        if (finished) {
+            return;
+        }
+        
+        if (battleEnded && arenaPanel != null && arenaPanel.isReadyToClose()) {
+            if (callbacks != null) {
+                callbacks.getPanelFader().fadeOut();
+                if (callbacks.getPanelFader().isFadedOut()) {
+                    callbacks.dismissDialog();
+                    finished = true;
+                }
+            }
+        }
+    }
+    
+    public void reportDismissed(int option) {
+        if (memoryMap != null) {
+            FireBest.fire(null, dialog, memoryMap, "ArenaPanelDismissed");
+        }
+        
+        if (onDismissCallback != null) {
+            onDismissCallback.run();
+        }
+    }
+    
+    public void updateForBattle(
+            List<SpiralAbyssArena.SpiralGladiator> combatants,
+            int currentRound,
+            int totalBet,
+            List<BetInfo> bets,
+            List<String> battleLog) {
+        
+        this.combatants = combatants;
+        this.currentRound = currentRound;
+        this.totalBet = totalBet;
+        this.bets = bets;
+        this.battleLog = battleLog;
+        
+        if (arenaPanel != null) {
+            arenaPanel.updateState(combatants, currentRound, totalBet, bets, battleLog);
+        }
+    }
+    
+    public void setBattleEnded(int winnerIndex, int totalReward) {
+        this.battleEnded = true;
+        this.winnerIndex = winnerIndex;
+        this.totalReward = totalReward;
+        
+        if (arenaPanel != null) {
+            arenaPanel.setBattleEnded(winnerIndex, totalReward);
+        }
+    }
+    
+    public void setBattleEnded(int winnerIndex, int totalReward, ArenaPanelUI.RewardBreakdown breakdown) {
+        this.battleEnded = true;
+        this.winnerIndex = winnerIndex;
+        this.totalReward = totalReward;
+        
+if (arenaPanel != null) {
+            arenaPanel.setBattleEnded(winnerIndex, totalReward, breakdown);
+        }
+
+    }
+    
+    public boolean getPendingLeave() {
+        return pendingLeave;
+    }
+    
+    public boolean getPendingReturnToLobby() {
+        return pendingReturnToLobby;
+    }
+    
+    public boolean getPendingWatchNext() {
+        return pendingWatchNext;
+    }
+    
+    public boolean getPendingSkipToEnd() {
+        return pendingSkipToEnd;
+    }
+    
+    public boolean getPendingSuspend() {
+        return pendingSuspend;
+    }
+    
+    public boolean getPendingStartBattle() {
+        return pendingStartBattle;
+    }
+    
+    public int getPendingBetAmount() {
+        return pendingBetAmount;
+    }
+    
+    public int getPendingChampionIndex() {
+        return pendingChampionIndex;
+    }
+    
+    public void clearPendingActions() {
+        pendingLeave = false;
+        pendingReturnToLobby = false;
+        pendingWatchNext = false;
+        pendingSkipToEnd = false;
+        pendingSuspend = false;
+        pendingStartBattle = false;
+        pendingBetAmount = 0;
+        pendingChampionIndex = -1;
+    }
+    
+    public boolean isFinished() {
+        return finished;
+    }
+    
+    }

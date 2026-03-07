@@ -325,7 +325,7 @@ private String formatBB(int amount, int bigBlind) {
             return;
         }
         
-        currentDelegate = new PokerDialogDelegate(pokerGame, main.getDialog(), null, () -> {
+        currentDelegate = new PokerDialogDelegate(pokerGame, main.getDialog(), main.getDialog().getPlugin().getMemoryMap(), () -> {
             handlePokerPanelDismissed();
         });
         
