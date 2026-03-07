@@ -1406,7 +1406,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         int maxLines = 12;
         int start = Math.max(0, validEntries.size() - maxLines);
 
-        // Updated to match new battle log position in center column
         float logPanelX = SHIP_COLUMN_WIDTH + MARGIN;
         float logPanelY = MARGIN + 40f;
         float logPanelW = CENTER_COLUMN_WIDTH - MARGIN;
@@ -1432,12 +1431,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             float screenY = panelY + logPanelY + logPanelH - currentY - LOG_LINE_HEIGHT;
             float spriteCenterY = screenY + LOG_LINE_HEIGHT / 2f;
 
-            Boolean targetDeadObj = hullIdDeadStatus.get(entry.targetHullId);
-            boolean targetDead = targetDeadObj != null && targetDeadObj;
-            
-            Boolean attackerDeadObj = hullIdDeadStatus.get(entry.attackerHullId);
-            boolean attackerDead = attackerDeadObj != null && attackerDeadObj;
-
             String labelText = "";
             Color labelColor = Color.WHITE;
             boolean hasTwoSprites = true;
@@ -1448,7 +1441,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 labelColor = entry.isCrit ? new Color(255, 100, 100) : new Color(255, 255, 100);
                 
                 drawBattleLogSpriteWithDead(entry.attackerHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
-                drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, targetDead);
+                drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
                 
             } else if (entry.type.equals("MISS")) {
                 labelText = entry.rawEntry;
@@ -1471,8 +1464,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             } else if (entry.type.equals("EVENT")) {
                 hasTwoSprites = false;
                 String eventText = entry.rawEntry;
-                if (eventText.startsWith("[EVENT] ")) {
-                }
                 labelText = eventText;
                 labelColor = new Color(100, 200, 255);
                 textX = textStartX_oneSprite;

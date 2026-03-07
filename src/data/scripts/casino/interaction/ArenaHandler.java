@@ -1,6 +1,8 @@
 package data.scripts.casino.interaction;
 
 import com.fs.starfarer.api.Global;
+import data.scripts.casino.ArenaDialogDelegate;
+import data.scripts.casino.ArenaPanelUI;
 import data.scripts.casino.CasinoConfig;
 import data.scripts.casino.CasinoGachaManager;
 import data.scripts.casino.CasinoVIPManager;
@@ -55,7 +57,8 @@ public class ArenaHandler {
     private static final String MEM_ARENA_BETS_COUNT = "$ipc_arena_bets_count";
     private static final String MEM_ARENA_SUSPEND_TIME = "$ipc_arena_suspend_time";
 
-    private final CasinoInteraction main;
+private final CasinoInteraction main;
+    private ArenaDialogDelegate currentDelegate;
     
     protected SpiralAbyssArena activeArena;
     protected List<SpiralAbyssArena.SpiralGladiator> arenaCombatants;
@@ -83,7 +86,8 @@ public class ArenaHandler {
         }
     }
     
-    protected List<BetInfo> arenaBets = new ArrayList<>();
+protected List<BetInfo> arenaBets = new ArrayList<>();
+    protected List<String> battleLog = new ArrayList<>();
     
     private final Map<String, OptionHandler> handlers = new HashMap<>();
     private final Map<Predicate<String>, OptionHandler> predicateHandlers = new HashMap<>();
@@ -94,6 +98,7 @@ public class ArenaHandler {
     }
     
     private void initializeHandlers() {
+        handlers.put("arena_visual_panel", option -> initAndShowVisualPanel());
         handlers.put(OPTION_ARENA_LOBBY, option -> showArenaLobby());
         handlers.put("arena_add_bet_menu", option -> showAddBetMenu());
         handlers.put(OPTION_HOW_TO_ARENA, option -> main.help.showArenaHelp());
@@ -109,7 +114,7 @@ public class ArenaHandler {
         });
         handlers.put(OPTION_ARENA_SUSPEND, option -> suspendArena());
         handlers.put(OPTION_ARENA_ADD_ANOTHER_BET, option -> showAddAnotherBetMenu());
-        handlers.put(OPTION_ARENA_STATUS, option -> showArenaStatus());
+        handlers.put(OPTION_ARENA_STATUS, option -> showArenaVisualPanel());
         handlers.put(OPTION_ARENA_LEAVE_NOW, option -> main.showMenu());
         handlers.put(OPTION_ARENA_START_BATTLE, option -> {
             int chosenIdx = -1;
@@ -353,6 +358,24 @@ public class ArenaHandler {
         main.textPanel.addPara("------------------------", Color.CYAN);
     }
 
+    public void initAndShowVisualPanel() {
+        main.options.clearOptions();
+
+        if (hasSuspendedArena()) {
+            restoreSuspendedArena();
+            return;
+        }
+
+        if (activeArena == null || arenaCombatants == null || arenaCombatants.isEmpty()) {
+            activeArena = new SpiralAbyssArena();
+            arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
+            currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
+        }
+
+        main.setState(CasinoInteraction.State.ARENA);
+        showArenaVisualPanel();
+    }
+
     public void showArenaLobby() {
         main.options.clearOptions();
 
@@ -440,13 +463,13 @@ public class ArenaHandler {
             return;
         }
 
-        CasinoVIPManager.addToBalance(-additionalAmount);
+CasinoVIPManager.addToBalance(-additionalAmount);
 
         float frozenOdds = chosenChampion.getCurrentOdds(currentRound);
         arenaBets.add(new BetInfo(additionalAmount, frozenOdds, chosenChampion, currentRound));
         cachedTotalBet += additionalAmount;
 
-        main.textPanel.addPara("Added " + additionalAmount + " Stargems to your bet at " + String.format("%.1f", frozenOdds) + "x odds. Total bet: " + getCurrentTotalBet() + " Stargems.", Color.GREEN);
+        // main.textPanel.addPara("Added " + additionalAmount + " Stargems to your bet at " + String.format("%.1f", frozenOdds) + "x odds. Total bet: " + getCurrentTotalBet() + " Stargems.", Color.GREEN);
         showAddBetMenu();
     }
     
@@ -533,11 +556,8 @@ public class ArenaHandler {
             cachedTotalBet += CasinoConfig.ARENA_ENTRY_FEE;
         }
 
-        opponentsDefeated = 0;
+opponentsDefeated = 0;
         currentRound = 0;
-
-        main.textPanel.setFontInsignia();
-        main.textPanel.addPara("The battle begins! Your champions enter the arena:", Color.CYAN);
 
         Set<SpiralAbyssArena.SpiralGladiator> betShips = new HashSet<>();
         for (BetInfo bet : arenaBets) {
@@ -545,27 +565,80 @@ public class ArenaHandler {
                 betShips.add(bet.ship);
             }
         }
-
-        for (SpiralAbyssArena.SpiralGladiator ship : betShips) {
-            String prefixText = ship.prefix + " ";
-            String hullNameText = ship.hullName + " ";
-            String affixText = ship.affix;
-            String betText = " (Bet: " + getBetAmountForShip(ship) + " Stargems)";
-            String betAmountStr = getBetAmountForShip(ship) + " Stargems";
-
-            String fullText = "  - " + prefixText + hullNameText + affixText + betText;
-            main.textPanel.addPara(fullText);
-
-            applyShipHighlighting(ship, fullText, betAmountStr, Color.YELLOW);
-        }
-        
-        main.textPanel.addPara("Total Bet: " + totalBet + " Stargems", Color.YELLOW);
         
         simulateArenaStep();
     }
+    
+    private void showArenaVisualPanel() {
+        currentDelegate = new ArenaDialogDelegate(
+            arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog,
+            main.getDialog(), null, () -> {
+                handleArenaPanelDismissed();
+            }
+        );
+        
+        main.getDialog().showCustomVisualDialog(1000f, 700f, currentDelegate);
+    }
+    
+    private void handleArenaPanelDismissed() {
+        if (currentDelegate == null) return;
+        
+        if (currentDelegate.getPendingWatchNext()) {
+            simulateArenaStep();
+            return;
+        }
+        
+        if (currentDelegate.getPendingSkipToEnd()) {
+            boolean result;
+            do {
+                result = simulateArenaStep();
+            } while (result);
+            return;
+        }
+        
+        if (currentDelegate.getPendingSuspend()) {
+            suspendArena();
+            return;
+        }
+        
+        if (currentDelegate.getPendingLeave()) {
+            main.showMenu();
+            return;
+        }
+        
+        if (currentDelegate.getPendingReturnToLobby()) {
+            showArenaLobby();
+            return;
+        }
+        
+        if (currentDelegate.getPendingBetAmount() > 0 && currentDelegate.getPendingChampionIndex() >= 0) {
+            performAddBetToChampion(currentDelegate.getPendingChampionIndex(), currentDelegate.getPendingBetAmount());
+            return;
+        }
+        
+        if (currentDelegate.getPendingStartBattle()) {
+            int chosenIdx = -1;
+            for (int i = 0; i < arenaCombatants.size(); i++) {
+                if (chosenChampion != null &&
+                    arenaCombatants.get(i).fullName.equals(chosenChampion.fullName)) {
+                    chosenIdx = i;
+                    break;
+                }
+            }
+            if (chosenIdx != -1) {
+                startArenaBattle(chosenIdx);
+            }
+            return;
+        }
+        
+        currentDelegate = null;
+    }
 
-    private boolean simulateArenaStep() {
+private boolean simulateArenaStep() {
         List<String> logEntries = activeArena.simulateStep(arenaCombatants, currentRound);
+        
+        // Invalidate odds cache after state change (HP values changed)
+        activeArena.invalidateOddsCache();
 
         currentRound++;
 
@@ -583,40 +656,79 @@ public class ArenaHandler {
         }
 
         for (String logEntry : logEntries) {
-            processLogEntry(logEntry);
+            // processLogEntry(logEntry);
+            battleLog.add(logEntry);
         }
         
-        showArenaStatus();
+        showArenaVisualPanel();
         return true;
     }
 
-    private void showArenaStatus() {
-        main.getOptions().clearOptions();
-        main.getOptions().addOption("Watch Next Round", "arena_watch_next");
-        main.getOptions().addOption("Skip to End", "arena_skip");
-        main.getOptions().addOption("Add Bet to Champion", "arena_add_another_bet");
-        main.getOptions().addOption("Arena Rules", "how_to_arena_arena_status");
-        main.getOptions().addOption("Tell Them to Wait (Suspend)", "arena_suspend");
-    }
-
     private void finishArenaBattle() {
-        main.getOptions().clearOptions();
-
         SpiralAbyssArena.SpiralGladiator actualWinner = findWinner();
         calculateFinalPositions(actualWinner);
         Set<SpiralAbyssArena.SpiralGladiator> betShips = collectBetShips();
 
         RewardCalculation rewards = calculateRewards(betShips);
 
-        displayBattleResults(rewards, betShips);
-        displayPerformanceSummary(betShips, rewards.totalBet);
-        displayNetResult(rewards);
+        CasinoVIPManager.addToBalance(rewards.totalWinReward + rewards.totalConsolationReward);
 
-        resetArenaState();
+        int winnerIndex = -1;
+        for (int i = 0; i < arenaCombatants.size(); i++) {
+            if (arenaCombatants.get(i) == actualWinner) {
+                winnerIndex = i;
+                break;
+            }
+        }
 
-        main.getOptions().addOption("Return to Lobby", OPTION_ARENA_LOBBY);
-        main.getOptions().addOption("Back to Main Menu", OPTION_BACK_MENU);
+        battleEnded = true;
+        finalWinnerIndex = winnerIndex;
+        finalReward = rewards.totalWinReward + rewards.totalConsolationReward;
+
+        ArenaPanelUI.RewardBreakdown breakdown = buildRewardBreakdown(betShips, rewards);
+
+        currentDelegate = new ArenaDialogDelegate(
+            arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog,
+            main.getDialog(), null, () -> {
+                handleArenaPanelDismissed();
+            }
+        );
+        
+        currentDelegate.setBattleEnded(winnerIndex, finalReward, breakdown);
+        main.getDialog().showCustomVisualDialog(1000f, 700f, currentDelegate);
     }
+
+    private ArenaPanelUI.RewardBreakdown buildRewardBreakdown(Set<SpiralAbyssArena.SpiralGladiator> betShips, RewardCalculation rewards) {
+        ArenaPanelUI.RewardBreakdown breakdown = new ArenaPanelUI.RewardBreakdown();
+        breakdown.totalBet = rewards.totalBet;
+        breakdown.winReward = rewards.totalWinReward;
+        breakdown.consolationReward = rewards.totalConsolationReward;
+        breakdown.totalReward = rewards.totalWinReward + rewards.totalConsolationReward;
+        breakdown.netResult = breakdown.totalReward - rewards.totalBet;
+
+        float consolationMultiplier = CasinoConfig.ARENA_DEFEATED_CONSOLATION_MULT;
+
+        for (SpiralAbyssArena.SpiralGladiator ship : betShips) {
+            int betAmount = getBetAmountForShip(ship);
+            int shipReward = 0;
+
+            if (!ship.isDead) {
+                shipReward = calculateWinReward(ship);
+            } else {
+                shipReward = calculateConsolationReward(ship, consolationMultiplier);
+            }
+
+            breakdown.shipRewards.add(new ArenaPanelUI.RewardBreakdown.ShipRewardInfo(
+                ship.hullName, betAmount, ship.kills, ship.finalPosition, !ship.isDead, shipReward
+            ));
+        }
+
+        return breakdown;
+    }
+    
+    protected boolean battleEnded = false;
+    protected int finalWinnerIndex = -1;
+    protected int finalReward = 0;
 
     /**
      * Calculates final positions for all combatants based on survival time.
@@ -828,7 +940,7 @@ public class ArenaHandler {
         }
     }
 
-    private void resetArenaState() {
+private void resetArenaState() {
         activeArena = null;
         arenaCombatants = null;
         chosenChampion = null;
@@ -836,12 +948,17 @@ public class ArenaHandler {
         arenaBets.clear();
         cachedTotalBet = 0;
         currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
+        battleLog.clear();
+        battleEnded = false;
+        finalWinnerIndex = -1;
+        finalReward = 0;
+        currentDelegate = null;
     }
 
     private void showBetAmountSelection(int championIndex) {
         if (championIndex < 0 || championIndex >= arenaCombatants.size()) {
             main.textPanel.addPara("Error: Invalid champion selection.", Color.RED);
-            showArenaStatus();
+            showArenaVisualPanel();
             return;
         }
 
@@ -942,7 +1059,7 @@ public class ArenaHandler {
     private void performAddBetToChampion(int championIndex, int additionalAmount) {
         if (championIndex < 0 || championIndex >= arenaCombatants.size()) {
             main.textPanel.addPara("Error: Invalid champion selection.", Color.RED);
-            showArenaStatus();
+            showArenaVisualPanel();
             return;
         }
 
@@ -953,17 +1070,21 @@ public class ArenaHandler {
         SpiralAbyssArena.SpiralGladiator targetChampion = arenaCombatants.get(championIndex);
         if (targetChampion.isDead) {
             main.getTextPanel().addPara("Cannot place bet on " + targetChampion.fullName + ", the champion has been defeated!", Color.RED);
-            showArenaStatus();
+            showArenaVisualPanel();
             return;
         }
 
-        CasinoVIPManager.addToBalance(-additionalAmount);
+CasinoVIPManager.addToBalance(-additionalAmount);
         float frozenOdds = targetChampion.getCurrentOdds(currentRound);
         arenaBets.add(new BetInfo(additionalAmount, frozenOdds, targetChampion, currentRound));
         cachedTotalBet += additionalAmount;
 
-        main.getTextPanel().addPara("Added bet of " + additionalAmount + " Stargems on " + targetChampion.fullName + " at " + String.format("%.1f", frozenOdds) + "x odds.", Color.YELLOW);
-        showArenaStatus();
+if (chosenChampion == null) {
+            chosenChampion = targetChampion;
+        }
+
+        // main.getTextPanel().addPara("Added bet of " + additionalAmount + " Stargems on " + targetChampion.fullName + " at " + String.format("%.1f", frozenOdds) + "x odds.", Color.YELLOW);
+        showArenaVisualPanel();
     }
     
     private int getBetAmountForShip(SpiralAbyssArena.SpiralGladiator ship) {
@@ -1009,6 +1130,7 @@ public class ArenaHandler {
         if (arenaCombatants != null) {
             for (int i = 0; i < arenaCombatants.size(); i++) {
                 SpiralAbyssArena.SpiralGladiator gladiator = arenaCombatants.get(i);
+                mem.set(MEM_ARENA_COMBATANT_PREFIX + i + "_hull_id", gladiator.hullId);
                 mem.set(MEM_ARENA_COMBATANT_PREFIX + i + "_prefix", gladiator.prefix);
                 mem.set(MEM_ARENA_COMBATANT_PREFIX + i + "_hull_name", gladiator.hullName);
                 mem.set(MEM_ARENA_COMBATANT_PREFIX + i + "_affix", gladiator.affix);
@@ -1069,6 +1191,10 @@ public class ArenaHandler {
             arenaCombatants = new ArrayList<>();
             for (int i = 0; i < combatantCount; i++) {
                 String prefix = mem.getString(MEM_ARENA_COMBATANT_PREFIX + i + "_prefix");
+                String hullId = mem.getString(MEM_ARENA_COMBATANT_PREFIX + i + "_hull_id");
+                if (hullId == null) {
+                    hullId = "";  // Fallback for older saves
+                }
                 String hullName = mem.getString(MEM_ARENA_COMBATANT_PREFIX + i + "_hull_name");
                 String affix = mem.getString(MEM_ARENA_COMBATANT_PREFIX + i + "_affix");
                 int hp = mem.getInt(MEM_ARENA_COMBATANT_PREFIX + i + "_hp");
@@ -1077,7 +1203,7 @@ public class ArenaHandler {
                 float agility = mem.getFloat(MEM_ARENA_COMBATANT_PREFIX + i + "_agility");
                 float bravery = mem.getFloat(MEM_ARENA_COMBATANT_PREFIX + i + "_bravery");
 
-                SpiralAbyssArena.SpiralGladiator gladiator = new SpiralAbyssArena.SpiralGladiator(prefix, hullName, affix, maxHp, power, agility, bravery);
+                SpiralAbyssArena.SpiralGladiator gladiator = new SpiralAbyssArena.SpiralGladiator(hullId, prefix, hullName, affix, maxHp, power, agility, bravery);
                 gladiator.hp = hp;
                 gladiator.isDead = mem.getBoolean(MEM_ARENA_COMBATANT_PREFIX + i + "_is_dead");
                 gladiator.kills = mem.getInt(MEM_ARENA_COMBATANT_PREFIX + i + "_kills");
@@ -1131,10 +1257,10 @@ public class ArenaHandler {
         } else {
             main.getTextPanel().addPara("The arena attendant looks surprised. 'Back already? Only " + String.format("%.1f", daysAway * 24) + " hours have passed.' They whisper to a colleague: 'I lost the bet. I said they'd be gone at least a day.'", Color.YELLOW);
         }
-        main.getTextPanel().addPara("The crowd stirs from their torpor as the combatants finally unlock their joints.", Color.CYAN);
+main.getTextPanel().addPara("The crowd stirs from their torpor as the combatants finally unlock their joints.", Color.CYAN);
         
-        // Show the battle status
-        showArenaStatus();
+        // Show the battle status using visual panel
+        showArenaVisualPanel();
     }
 
     /**

@@ -2177,17 +2177,14 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     }
     
     /**
-     * Updates the game reference and recreates buttons.
-     * NOTE: This clears all existing buttons and recreates them based on new state.
+     * Updates the game reference without recreating buttons.
+     * This is used for smooth in-place updates during gameplay.
      */
     public void updateGameState(PokerGame game) {
         this.game = game;
         
         waitingForOpponent = false;
         opponentThinkTimer = 0f;
-        
-        hideOpponentAction();
-        hidePlayerAction();
         
         resultCached = false;
         cachedPlayerScore = null;
@@ -2207,9 +2204,8 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
             lastCommunityCardRanks[i] = null;
         }
         
-        buttonsCreated = false;
-        
-        createButtonsInInit();
+        // DON'T recreate buttons - they persist across state changes
+        // Button visibility is updated in updateButtonVisibility() called from advance()
     }
     
     // ============================================================================

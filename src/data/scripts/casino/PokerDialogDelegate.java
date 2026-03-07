@@ -9,6 +9,7 @@ import com.fs.starfarer.api.campaign.InteractionDialogAPI;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.impl.campaign.rulecmd.FireBest;
 import com.fs.starfarer.api.ui.CustomPanelAPI;
+import data.scripts.casino.interaction.PokerHandler;
 
 /**
  * Dialog delegate for the Poker UI Panel.
@@ -31,11 +32,11 @@ import com.fs.starfarer.api.ui.CustomPanelAPI;
  */
 public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     
-    // ============================================================================
+// ============================================================================
     // STATE
     // ============================================================================
     protected DialogCallbacks callbacks;
-    protected float endDelay = 1.5f; // Delay before closing after game ends
+    protected float endDelay = 1.5f;
     protected boolean finished = false;
     protected boolean gameEnded = false;
     
@@ -46,6 +47,7 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     protected InteractionDialogAPI dialog;
     protected Map<String, MemoryAPI> memoryMap;
     protected PokerGame game;
+    protected PokerHandler handler;
     
     // ============================================================================
     // CALLBACKS
@@ -74,13 +76,29 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
      */
     public PokerDialogDelegate(PokerGame game, InteractionDialogAPI dialog,
             Map<String, MemoryAPI> memoryMap, Runnable onDismissCallback) {
+        this(game, dialog, memoryMap, onDismissCallback, null);
+    }
+    
+    /**
+     * Creates a new PokerDialogDelegate with handler reference for in-place updates.
+     * 
+     * This constructor is preferred for smooth gameplay - actions are processed
+     * in-place without dismissing the dialog, avoiding visual flash.
+     * 
+     * @param game The poker game instance (shared with PokerHandler)
+     * @param dialog The interaction dialog
+     * @param memoryMap Memory map for event firing
+     * @param onDismissCallback Called when dialog is dismissed
+     * @param handler Reference to PokerHandler for in-place action processing
+     */
+    public PokerDialogDelegate(PokerGame game, InteractionDialogAPI dialog,
+            Map<String, MemoryAPI> memoryMap, Runnable onDismissCallback, PokerHandler handler) {
         this.game = game;
         this.dialog = dialog;
         this.memoryMap = memoryMap;
         this.onDismissCallback = onDismissCallback;
+        this.handler = handler;
         
-        // CRITICAL: Create PokerPanelUI HERE, not in init()!
-        // getCustomPanelPlugin() may be called before init()
         actionCallback = new PokerPanelUI.PokerActionCallback() {
             @Override
             public void onPlayerAction(PokerGame.Action action, int raiseAmount) {
@@ -228,7 +246,6 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
      */
     public void updateGame(PokerGame newGame) {
         this.game = newGame;
-        // Clear actions when starting new hand
         this.lastOpponentAction = "";
         this.lastPlayerAction = "";
         if (pokerPanel != null) {
@@ -239,6 +256,17 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
         gameEnded = false;
         finished = false;
         endDelay = 1.5f;
+    }
+    
+    /**
+     * Refreshes the panel UI after game state changes without dismissing the dialog.
+     * This is the key method for smooth in-place updates.
+     */
+    public void refreshAfterStateChange(PokerGame updatedGame) {
+        this.game = updatedGame;
+        if (pokerPanel != null) {
+            pokerPanel.updateGameState(updatedGame);
+        }
     }
     
     /**
@@ -254,17 +282,18 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
      * Handles player action from the panel UI.
      * This bridges the UI action to the game logic.
      * 
-     * CRITICAL: This must dismiss the dialog and return to PokerHandler
-     * because the panel UI is a separate dialog from the main interaction.
-     * The action is executed by PokerHandler after dismissal.
+     * IN-PLACE PROCESSING: If handler is available, processes action directly
+     * without dismissing the dialog, avoiding visual flash.
      */
     protected void handlePlayerAction(PokerGame.Action action, int raiseAmount) {
-        // Store the action so PokerHandler can execute it after dismissal
+        if (handler != null) {
+            handler.processPlayerActionInPlace(action, raiseAmount, this);
+            return;
+        }
+        
         pendingAction = action;
         pendingRaiseAmount = raiseAmount;
         
-        // Close the dialog and return to PokerHandler
-        // PokerHandler will execute the action in the dismiss callback
         if (callbacks != null) {
             callbacks.dismissDialog();
         }
@@ -343,9 +372,14 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     
     /**
      * Handles the "Next Hand" button click.
-     * Sets the pending flag and dismisses dialog so PokerHandler can start new hand.
+     * IN-PLACE PROCESSING: If handler is available, processes directly without dismissing.
      */
     protected void handleNextHand() {
+        if (handler != null) {
+            handler.startNextHandInPlace(this);
+            return;
+        }
+        
         pendingNextHand = true;
         pendingAction = null;
         
@@ -381,10 +415,16 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     /**
      * Handles the "Flip Table" button click.
      * At showdown, this becomes a clean "Leave" with no cooldown.
+     * IN-PLACE PROCESSING: If handler is available and at showdown, processes directly.
      */
     protected void handleFlipTable() {
         boolean isShowdown = game != null && game.getState() != null && 
             game.getState().round == PokerGame.Round.SHOWDOWN;
+        
+        if (handler != null && isShowdown) {
+            handler.handleCleanLeaveInPlace(this);
+            return;
+        }
         
         if (isShowdown) {
             pendingCleanLeave = true;

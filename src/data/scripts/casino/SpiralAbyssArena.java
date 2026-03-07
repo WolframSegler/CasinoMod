@@ -14,7 +14,12 @@ public class SpiralAbyssArena {
     private final Queue<String> lastCritHistory = new LinkedList<>();
     private final Queue<String> lastKillHistory = new LinkedList<>();
     private static final int MAX_HISTORY_SIZE = 3;
-
+    
+    // Caching for odds calculations to ensure consistent odds within the same round
+    private Map<Integer, Map<Integer, Float>> cachedPositionProbabilities = null;
+    private int cachedPositionRound = -1;
+    private List<Integer> cachedHpValues = null;
+    
     public enum ChaosEventType {
         SINGLE_SHIP_DAMAGE,  // Damages a single random ship (maintenance accident, asteroid impact, etc.)
         MULTI_SHIP_DAMAGE    // Damages multiple ships (collision, area explosion, etc.)
@@ -50,6 +55,7 @@ public class SpiralAbyssArena {
     public static class SpiralGladiator {
         public String prefix;    // e.g., "Mighty"
         public String hullName;  // e.g., "Hammerhead"
+        public String hullId;    // Hull ID for sprite lookup (e.g., "hammerhead")
         public String affix;     // e.g., "of the Void"
         public String fullName;
         public String shortName; // Name without prefix and affix
@@ -72,18 +78,18 @@ public class SpiralAbyssArena {
         private transient List<SpiralGladiator> combatantsRef;
         private transient int combatantIndex = -1;
         
-        public SpiralGladiator(String prefix, String hullName, String affix, int hp, int power, float agility, float bravery) {
+public SpiralGladiator(String hullId, String prefix, String hullName, String affix, int hp, int power, float agility, float bravery) {
+            this.hullId = hullId;
             this.prefix = prefix;
             this.hullName = hullName;
             this.affix = affix;
             this.fullName = prefix + " " + hullName + " " + affix;
-            this.shortName = hullName; // Just the hull name without prefix/affix
+            this.shortName = hullName;
             this.hp = hp;
             this.maxHp = hp;
             this.power = power;
             this.agility = Math.min(agility, CasinoConfig.ARENA_AGILITY_CAP);
             this.bravery = bravery;
-            // Base odds will be calculated after arena reference is set
             this.baseOdds = CasinoConfig.ARENA_BASE_ODDS;
         }
         
@@ -171,7 +177,7 @@ public class SpiralAbyssArena {
          * Creates a deep copy of this gladiator for simulation purposes.
          */
         public SpiralGladiator copyForSimulation() {
-            SpiralGladiator copy = new SpiralGladiator(prefix, hullName, affix, maxHp, power, agility, bravery);
+            SpiralGladiator copy = new SpiralGladiator(hullId, prefix, hullName, affix, maxHp, power, agility, bravery);
             copy.hp = this.hp;
             copy.isDead = this.isDead;
             copy.kills = this.kills;
@@ -268,7 +274,7 @@ public class SpiralAbyssArena {
             else bravery = posAffix ? bravery + CasinoConfig.ARENA_AFFIX_BRAVERY_BONUS : Math.max(0, bravery - CasinoConfig.ARENA_AFFIX_BRAVERY_BONUS);  // "of Courage"/"of Fear" affects Bravery
             
             agility = Math.min(agility, CasinoConfig.ARENA_AGILITY_CAP);
-            SpiralGladiator gladiator = new SpiralGladiator(prefix, spec.getHullName(), affix, hp, power, agility, bravery);
+            SpiralGladiator gladiator = new SpiralGladiator(hullId, prefix, spec.getHullName(), affix, hp, power, agility, bravery);
             list.add(gladiator);
         }
         
@@ -450,6 +456,16 @@ public class SpiralAbyssArena {
     }
     
     /**
+     * Clears the position probabilities cache.
+     * Should be called after any state change that affects HP or round (e.g., simulateStep).
+     */
+    public void invalidateOddsCache() {
+        cachedPositionProbabilities = null;
+        cachedPositionRound = -1;
+        cachedHpValues = null;
+    }
+    
+    /**
      * Gets a random description from the provided list.
      */
     private String getRandomDescription(List<String> descriptions) {
@@ -464,10 +480,11 @@ public class SpiralAbyssArena {
      * This provides accurate odds based on actual combat dynamics rather than simple HP ratios.
      * 
      * @param combatants The list of current combatants
+     * @param currentRound The current round number (0 = pre-battle)
      * @return Map of combatant index to win probability (0.0 - 1.0)
      */
-    public Map<Integer, Float> calculateWinProbabilities(List<SpiralGladiator> combatants) {
-        Map<Integer, Map<Integer, Float>> positionProbs = calculatePositionProbabilities(combatants);
+    public Map<Integer, Float> calculateWinProbabilities(List<SpiralGladiator> combatants, int currentRound) {
+        Map<Integer, Map<Integer, Float>> positionProbs = calculatePositionProbabilities(combatants, currentRound);
         Map<Integer, Float> winProbabilities = new HashMap<>();
         
         for (Map.Entry<Integer, Map<Integer, Float>> entry : positionProbs.entrySet()) {
@@ -479,15 +496,68 @@ public class SpiralAbyssArena {
     }
     
     /**
+     * Checks if the cached position probabilities are still valid for the given state.
+     * Cache is valid if: round matches and all HP values match cached values.
+     * 
+     * @param combatants The current combatants
+     * @param currentRound The current round number
+     * @return true if cached values are valid
+     */
+    private boolean isPositionCacheValid(List<SpiralGladiator> combatants, int currentRound) {
+        if (cachedPositionProbabilities == null || cachedHpValues == null) {
+            return false;
+        }
+        if (cachedPositionRound != currentRound) {
+            return false;
+        }
+        if (cachedHpValues.size() != combatants.size()) {
+            return false;
+        }
+        for (int i = 0; i < combatants.size(); i++) {
+            SpiralGladiator g = combatants.get(i);
+            if (g.hp != cachedHpValues.get(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * Updates the cache with current state and calculated probabilities.
+     * 
+     * @param combatants The current combatants
+     * @param currentRound The current round number
+     * @param probabilities The calculated position probabilities
+     */
+    private void updatePositionCache(List<SpiralGladiator> combatants, int currentRound, 
+                                     Map<Integer, Map<Integer, Float>> probabilities) {
+        cachedPositionRound = currentRound;
+        cachedHpValues = new ArrayList<>();
+        for (SpiralGladiator g : combatants) {
+            cachedHpValues.add(g.hp);
+        }
+        // Deep copy the probabilities map
+        cachedPositionProbabilities = new HashMap<>();
+        for (Map.Entry<Integer, Map<Integer, Float>> entry : probabilities.entrySet()) {
+            cachedPositionProbabilities.put(entry.getKey(), new HashMap<>(entry.getValue()));
+        }
+    }
+    
+    /**
      * Calculates position probabilities for all alive combatants using Monte Carlo simulation.
      * Position 0 = winner, 1 = 2nd place, 2 = 3rd place, etc.
-     * 
-     * This is essential for calculating odds that account for consolation rewards.
+     * Results are cached for the same round and HP state to ensure consistent odds.
      * 
      * @param combatants The list of current combatants
+     * @param currentRound The current round number (0 = pre-battle)
      * @return Map of combatant index to Map of position to probability
      */
-    public Map<Integer, Map<Integer, Float>> calculatePositionProbabilities(List<SpiralGladiator> combatants) {
+    public Map<Integer, Map<Integer, Float>> calculatePositionProbabilities(List<SpiralGladiator> combatants, int currentRound) {
+        // Check cache first
+        if (isPositionCacheValid(combatants, currentRound)) {
+            return cachedPositionProbabilities;
+        }
+        
         Map<Integer, Map<Integer, Float>> positionProbabilities = new HashMap<>();
         int aliveCount = 0;
         
@@ -505,6 +575,7 @@ public class SpiralAbyssArena {
             for (int i = 0; i < combatants.size(); i++) {
                 if (!combatants.get(i).isDead) {
                     positionProbabilities.get(i).put(0, 1.0f);
+                    updatePositionCache(combatants, currentRound, positionProbabilities);
                     return positionProbabilities;
                 }
             }
@@ -560,7 +631,18 @@ public class SpiralAbyssArena {
             }
         }
         
+        // Cache the results
+        updatePositionCache(combatants, currentRound, positionProbabilities);
+        
         return positionProbabilities;
+    }
+    
+    /**
+     * @deprecated Use calculatePositionProbabilities(List, int) instead
+     */
+    @Deprecated
+    public Map<Integer, Map<Integer, Float>> calculatePositionProbabilities(List<SpiralGladiator> combatants) {
+        return calculatePositionProbabilities(combatants, 0);
     }
     
     /**
@@ -686,7 +768,7 @@ public class SpiralAbyssArena {
             return 0.0f;
         }
         
-        Map<Integer, Map<Integer, Float>> positionProbabilities = calculatePositionProbabilities(combatants);
+        Map<Integer, Map<Integer, Float>> positionProbabilities = calculatePositionProbabilities(combatants, currentRound);
         Map<Integer, Float> shipPositionProbs = positionProbabilities.get(shipIndex);
         
         if (shipPositionProbs == null || shipPositionProbs.isEmpty()) {

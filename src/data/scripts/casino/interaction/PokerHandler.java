@@ -4,6 +4,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import data.scripts.casino.CasinoConfig;
 import data.scripts.casino.CasinoVIPManager;
+import data.scripts.casino.PokerDialogDelegate;
 import data.scripts.casino.PokerGame;
 import data.scripts.casino.PokerGame.PokerGameLogic;
 
@@ -22,6 +23,8 @@ public class PokerHandler {
 
     private final CasinoInteraction main;
     private PokerGame pokerGame;
+    private PokerDialogDelegate currentDelegate;
+    private boolean panelOpen = false;
 
     private static final int COOLDOWN_DAYS = 1;
     private static final int MIN_HANDS_BEFORE_LEAVE = 3;
@@ -35,7 +38,9 @@ public class PokerHandler {
     private int pendingStackSize = 0;
     private int pendingOverdraftAmount = 0;
 
-    private int handsPlayedThisSession = 0;
+private int handsPlayedThisSession = 0;
+    private String pendingOpponentAction = "";
+    private String pendingPlayerAction = "";
     private static final String POKER_COOLDOWN_KEY = "$ipc_poker_cooldown_until";
 
     private final Map<String, OptionHandler> handlers = new HashMap<>();
@@ -55,18 +60,18 @@ public class PokerHandler {
         handlers.put("poker_check", option -> handlePokerCheck());
         handlers.put("poker_fold", option -> handlePokerFold());
         handlers.put("poker_raise_menu", option -> showRaiseOptions());
-        handlers.put("poker_back_action", option -> updateUI());
+handlers.put("poker_back_action", option -> showPokerVisualPanel());
         handlers.put("poker_suspend", option -> suspendGame());
         handlers.put("poker_back_to_menu", option -> handleLeaveTable());
         handlers.put("leave_now", option -> handleSuspendLeave());
         handlers.put("poker_abandon_confirm", option -> showAbandonConfirm());
         handlers.put("poker_abandon_confirm_leave", option -> handleLeaveTable());
-        handlers.put("poker_abandon_cancel", option -> updateUI());
+        handlers.put("poker_abandon_cancel", option -> showPokerVisualPanel());
         handlers.put("suspend_abandon_confirm", option -> showSuspendAbandonConfirm());
         handlers.put("suspend_abandon_leave", option -> abandonSuspendedGame());
         handlers.put("suspend_abandon_cancel", option -> {
             main.textPanel.addPara("You sit back down. The game continues.", Color.CYAN);
-            updateUI();
+            showPokerVisualPanel();
         });
         handlers.put("back_menu", option -> main.showMenu());
         handlers.put("confirm_overdraft", option -> processOverdraftConfirmation());
@@ -272,14 +277,14 @@ public class PokerHandler {
         showPokerConfirm();
     }
     
-    private void startGameWithStack(int stackSize) {
+private void startGameWithStack(int stackSize) {
         int opponentStack = Math.max(CasinoConfig.POKER_DEFAULT_OPPONENT_STACK, stackSize);
         
         pokerGame = new PokerGame(stackSize, opponentStack, CasinoConfig.POKER_SMALL_BLIND, CasinoConfig.POKER_BIG_BLIND);
         
         handsPlayedThisSession = 0;
         
-        updateUI();
+        showPokerVisualPanel();
     }
     
     private void showVIPPromotionForPoker(int stackSize) {
@@ -305,8 +310,199 @@ public class PokerHandler {
         main.getOptions().addOption("Back", "back_menu");
     }
 
-    private String formatBB(int amount, int bigBlind) {
+private String formatBB(int amount, int bigBlind) {
         return bigBlind > 0 ? String.format("%.1f", (float) amount / bigBlind) : "0";
+    }
+
+    private void showPokerVisualPanel() {
+        if (pokerGame == null) return;
+        PokerGame.PokerState state = pokerGame.getState();
+        
+        // Only auto-end if pot is 0 AND not in showdown (player can still be all-in with 0 stack but hand ongoing)
+        if (state.playerStack < CasinoConfig.POKER_BIG_BLIND && state.pot == 0 && state.round != PokerGame.Round.SHOWDOWN) {
+            endHand();
+            return;
+        }
+        
+        panelOpen = true;
+        currentDelegate = new PokerDialogDelegate(pokerGame, main.getDialog(), null, () -> {
+            handlePokerPanelDismissed();
+        }, this);
+        
+        if (!pendingOpponentAction.isEmpty()) {
+            currentDelegate.setLastOpponentAction(pendingOpponentAction);
+            pendingOpponentAction = "";
+        }
+        
+        if (!pendingPlayerAction.isEmpty()) {
+            currentDelegate.setLastPlayerAction(pendingPlayerAction);
+            pendingPlayerAction = "";
+        }
+        
+        main.getDialog().showCustomVisualDialog(1000f, 700f, currentDelegate);
+    }
+    
+    private void handlePokerPanelDismissed() {
+        panelOpen = false;
+        if (currentDelegate == null) return;
+        
+        if (currentDelegate.getPendingAction() != null) {
+            PokerGame.Action action = currentDelegate.getPendingAction();
+            int raiseAmount = currentDelegate.getPendingRaiseAmount();
+            
+            switch (action) {
+                case FOLD:
+                    processPlayerFold();
+                    break;
+                case CHECK:
+                    processPlayerCheck();
+                    break;
+                case CALL:
+                    processPlayerCall();
+                    break;
+                case RAISE:
+                    processPlayerRaise(raiseAmount);
+                    break;
+            }
+            return;
+        }
+        
+        if (currentDelegate.getPendingNextHand()) {
+            startNextHand();
+            return;
+        }
+        
+        if (currentDelegate.getPendingSuspend()) {
+            suspendGame();
+            return;
+        }
+        
+        if (currentDelegate.getPendingHowToPlay()) {
+            main.help.showPokerHelp();
+            return;
+        }
+        
+        if (currentDelegate.getPendingCleanLeave()) {
+            handleLeaveTable();
+            return;
+        }
+        
+        if (currentDelegate.getPendingFlipTable()) {
+            handleLeaveTable();
+            if (handsPlayedThisSession < MIN_HANDS_BEFORE_LEAVE) {
+                MemoryAPI mem = Global.getSector().getMemoryWithoutUpdate();
+                mem.set(POKER_COOLDOWN_KEY, Global.getSector().getClock().getTimestamp());
+                main.getTextPanel().addPara("The IPC Dealer makes a note in their ledger. 'Leaving so soon? The IPC Credit Facility remembers early departures.'", Color.YELLOW);
+            }
+            return;
+        }
+    }
+    
+    private void processPlayerFold() {
+        if (pokerGame == null) return;
+        pokerGame.processPlayerAction(PokerGame.Action.FOLD, 0);
+        pendingPlayerAction = "You fold";
+        PokerGame.PokerState state = pokerGame.getState();
+        if (state.folder != null) {
+            state.lastPotWon = state.pot;
+            if (state.folder == PokerGame.CurrentPlayer.PLAYER) {
+                state.opponentStack += state.pot;
+            } else {
+                state.playerStack += state.pot;
+            }
+            state.pot = 0;
+        }
+        showPokerVisualPanel();
+    }
+    
+    private void processPlayerCheck() {
+        if (pokerGame == null) return;
+        pokerGame.processPlayerAction(PokerGame.Action.CHECK, 0);
+        pendingPlayerAction = "You check";
+        processOpponentTurn();
+        showPokerVisualPanel();
+    }
+    
+    private void processPlayerCall() {
+        if (pokerGame == null) return;
+        PokerGame.PokerState state = pokerGame.getState();
+        int callAmount = Math.min(state.opponentBet - state.playerBet, state.playerStack);
+        pokerGame.processPlayerAction(PokerGame.Action.CALL, 0);
+        pendingPlayerAction = "You call " + callAmount;
+        processOpponentTurn();
+        showPokerVisualPanel();
+    }
+    
+    private void processPlayerRaise(int raiseAmount) {
+        if (pokerGame == null) return;
+        PokerGame.PokerState state = pokerGame.getState();
+        int totalBet = state.playerBet + raiseAmount;
+        pokerGame.processPlayerAction(PokerGame.Action.RAISE, raiseAmount);
+        pendingPlayerAction = "You raise to " + totalBet;
+        processOpponentTurn();
+        showPokerVisualPanel();
+    }
+    
+    private void processOpponentTurn() {
+        if (pokerGame == null) return;
+        PokerGame.PokerState state = pokerGame.getState();
+        
+        if (state.round == PokerGame.Round.SHOWDOWN) {
+            processShowdown();
+            return;
+        }
+        
+        while (state.currentPlayer == PokerGame.CurrentPlayer.OPPONENT) {
+            PokerGame.SimplePokerAI.AIResponse response = pokerGame.getOpponentAction();
+            pokerGame.processOpponentAction(response);
+            
+            pendingOpponentAction = switch (response.action) {
+                case CALL -> "Opponent calls";
+                case RAISE -> "Opponent raises by " + response.raiseAmount;
+                case CHECK -> "Opponent checks";
+                case FOLD -> "Opponent folds";
+            };
+            
+            state = pokerGame.getState();
+            if (state.round == PokerGame.Round.SHOWDOWN) {
+                processShowdown();
+                return;
+            }
+        }
+    }
+    
+    private void processShowdown() {
+        if (pokerGame == null) return;
+        PokerGame.PokerState state = pokerGame.getState();
+        
+        if (state.folder != null) {
+            state.lastPotWon = state.pot;
+            if (state.folder == PokerGame.CurrentPlayer.PLAYER) {
+                state.opponentStack += state.pot;
+            } else {
+                state.playerStack += state.pot;
+            }
+            state.pot = 0;
+            return;
+        }
+        
+        PokerGame.PokerGameLogic.HandScore playerScore = PokerGame.PokerGameLogic.evaluate(state.playerHand, state.communityCards);
+        PokerGame.PokerGameLogic.HandScore oppScore = PokerGame.PokerGameLogic.evaluate(state.opponentHand, state.communityCards);
+        
+        state.lastPotWon = state.pot;
+        
+        int cmp = playerScore.compareTo(oppScore);
+        if (cmp > 0) {
+            state.playerStack += state.pot;
+        } else if (cmp < 0) {
+            state.opponentStack += state.pot;
+        } else {
+            int halfPot = state.pot / 2;
+            int remainder = state.pot % 2;
+            state.playerStack += halfPot + remainder;
+            state.opponentStack += halfPot;
+        }
+        state.pot = 0;
     }
 
     public void updateUI() {
@@ -367,7 +563,7 @@ public class PokerHandler {
         main.getOptions().addOption("Flip Table and Leave", "poker_abandon_confirm");
     }
 
-    private void startNextHand() {
+private void startNextHand() {
         if (pokerGame != null) {
             PokerGame.PokerState state = pokerGame.getState();
             if (state.playerStack <= 0 || state.opponentStack <= 0) {
@@ -378,7 +574,7 @@ public class PokerHandler {
             }
             pokerGame.startNewHand();
             handsPlayedThisSession++;
-            updateUI();
+            showPokerVisualPanel();
         }
     }
 
@@ -630,12 +826,13 @@ public class PokerHandler {
             }
             main.getTextPanel().addPara("'The cards haven't moved. Let's finish this...'", Color.GRAY);
 
-            mem.unset("$ipc_suspended_game_type");
+mem.unset("$ipc_suspended_game_type");
 
-            updateUI();
+            showPokerVisualPanel();
         } else {
             setupGame();
         }
+
     }
 
     private void clearSuspendedGameMemory() {
@@ -847,7 +1044,7 @@ public class PokerHandler {
         main.showMenu();
     }
     
-    private void endHand() {
+private void endHand() {
         if (pokerGame == null) return;
         PokerGame.PokerState state = pokerGame.getState();
 
@@ -875,5 +1072,177 @@ public class PokerHandler {
             main.getOptions().addOption("Next Hand", "next_hand");
             main.getOptions().addOption("Leave Table", "back_menu");
         }
+    }
+    
+    // ============================================================================
+    // IN-PLACE ACTION PROCESSING (for visual panel UI)
+    // These methods process actions without dismissing/recreating the dialog
+    // ============================================================================
+    
+    /**
+     * Processes a player action in-place without dismissing the dialog.
+     * This is called by PokerDialogDelegate when handler is available.
+     */
+    public void processPlayerActionInPlace(PokerGame.Action action, int raiseAmount, PokerDialogDelegate delegate) {
+        if (pokerGame == null) return;
+        
+        PokerGame.PokerState state = pokerGame.getState();
+        
+        switch (action) {
+            case FOLD -> {
+                pokerGame.processPlayerAction(PokerGame.Action.FOLD, 0);
+                delegate.setLastPlayerAction("You fold");
+                if (state.folder != null) {
+                    state.lastPotWon = state.pot;
+                    if (state.folder == PokerGame.CurrentPlayer.PLAYER) {
+                        state.opponentStack += state.pot;
+                    } else {
+                        state.playerStack += state.pot;
+                    }
+                    state.pot = 0;
+                }
+            }
+            case CHECK -> {
+                pokerGame.processPlayerAction(PokerGame.Action.CHECK, 0);
+                delegate.setLastPlayerAction("You check");
+            }
+            case CALL -> {
+                int callAmount = Math.min(state.opponentBet - state.playerBet, state.playerStack);
+                pokerGame.processPlayerAction(PokerGame.Action.CALL, 0);
+                delegate.setLastPlayerAction("You call " + callAmount);
+            }
+            case RAISE -> {
+                int totalBet = state.playerBet + raiseAmount;
+                pokerGame.processPlayerAction(PokerGame.Action.RAISE, raiseAmount);
+                delegate.setLastPlayerAction("You raise to " + totalBet);
+            }
+        }
+        
+        processOpponentTurnInPlace(delegate);
+        
+        delegate.refreshAfterStateChange(pokerGame);
+    }
+    
+    /**
+     * Processes opponent's turn in-place, updating the delegate as needed.
+     */
+    private void processOpponentTurnInPlace(PokerDialogDelegate delegate) {
+        if (pokerGame == null) return;
+        
+        PokerGame.PokerState state = pokerGame.getState();
+        
+        if (state.round == PokerGame.Round.SHOWDOWN) {
+            determineWinnerInPlace(delegate);
+            return;
+        }
+        
+        while (state.currentPlayer == PokerGame.CurrentPlayer.OPPONENT) {
+            delegate.startOpponentTurn();
+            
+            PokerGame.SimplePokerAI.AIResponse response = pokerGame.getOpponentAction();
+            pokerGame.processOpponentAction(response);
+            
+            String actionText = formatOpponentActionText(response);
+            delegate.setLastOpponentAction(actionText);
+            
+            state = pokerGame.getState();
+            if (state.round == PokerGame.Round.SHOWDOWN) {
+                determineWinnerInPlace(delegate);
+                return;
+            }
+        }
+    }
+    
+    /**
+     * Formats an opponent AI response into display text.
+     */
+    private String formatOpponentActionText(PokerGame.SimplePokerAI.AIResponse response) {
+        return switch (response.action) {
+            case CALL -> "Opponent calls";
+            case RAISE -> "Opponent raises by " + response.raiseAmount;
+            case CHECK -> "Opponent checks";
+            case FOLD -> "Opponent folds";
+        };
+    }
+    
+    /**
+     * Determines the winner at showdown and updates game state in-place.
+     */
+    private void determineWinnerInPlace(PokerDialogDelegate delegate) {
+        if (pokerGame == null) return;
+        PokerGame.PokerState state = pokerGame.getState();
+        
+        if (state.folder != null) {
+            state.lastPotWon = state.pot;
+            if (state.folder == PokerGame.CurrentPlayer.PLAYER) {
+                state.opponentStack += state.pot;
+            } else {
+                state.playerStack += state.pot;
+            }
+            state.pot = 0;
+            delegate.refreshAfterStateChange(pokerGame);
+            return;
+        }
+        
+        PokerGame.PokerGameLogic.HandScore playerScore = PokerGame.PokerGameLogic.evaluate(state.playerHand, state.communityCards);
+        PokerGame.PokerGameLogic.HandScore oppScore = PokerGame.PokerGameLogic.evaluate(state.opponentHand, state.communityCards);
+        
+        state.lastPotWon = state.pot;
+        
+        int cmp = playerScore.compareTo(oppScore);
+        if (cmp > 0) {
+            state.playerStack += state.pot;
+        } else if (cmp < 0) {
+            state.opponentStack += state.pot;
+        } else {
+            int halfPot = state.pot / 2;
+            int remainder = state.pot % 2;
+            state.playerStack += halfPot + remainder;
+            state.opponentStack += halfPot;
+        }
+        state.pot = 0;
+        
+        delegate.refreshAfterStateChange(pokerGame);
+    }
+    
+    /**
+     * Starts the next hand in-place without dismissing the dialog.
+     */
+    public void startNextHandInPlace(PokerDialogDelegate delegate) {
+        if (pokerGame == null) return;
+        
+        PokerGame.PokerState state = pokerGame.getState();
+        
+        if (state.playerStack <= 0 || state.opponentStack <= 0) {
+            delegate.closeDialog();
+            setupGame(state.playerStack > 0 ? state.playerStack : 1000);
+            return;
+        }
+        
+        pokerGame.startNewHand();
+        handsPlayedThisSession++;
+        
+        delegate.updateGame(pokerGame);
+        processOpponentTurnInPlace(delegate);
+        delegate.refreshAfterStateChange(pokerGame);
+    }
+    
+    /**
+     * Handles a clean leave from showdown in-place.
+     */
+    public void handleCleanLeaveInPlace(PokerDialogDelegate delegate) {
+        if (pokerGame != null && pokerGame.getState().playerStack > 0) {
+            int stackToReturn = pokerGame.getState().playerStack;
+            CasinoVIPManager.addToBalance(stackToReturn);
+            pokerGame.getState().playerStack = 0;
+        }
+        
+        handsPlayedThisSession = 0;
+        clearSuspendedGameMemory();
+        pokerGame = null;
+        panelOpen = false;
+        
+        delegate.closeDialog();
+        main.showMenu();
     }
 }
