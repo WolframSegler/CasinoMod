@@ -580,19 +580,27 @@ opponentsDefeated = 0;
         main.getDialog().showCustomVisualDialog(1000f, 700f, currentDelegate);
     }
     
-    private void handleArenaPanelDismissed() {
+private void handleArenaPanelDismissed() {
         if (currentDelegate == null) return;
         
         if (currentDelegate.getPendingWatchNext()) {
-            simulateArenaStep();
+            if (battleEnded) {
+                startNewArenaMatch();
+            } else {
+                simulateArenaStep();
+            }
             return;
         }
         
         if (currentDelegate.getPendingSkipToEnd()) {
-            boolean result;
-            do {
-                result = simulateArenaStep();
-            } while (result);
+            if (battleEnded) {
+                startNewArenaMatch();
+            } else {
+                boolean result;
+                do {
+                    result = simulateArenaStep();
+                } while (result);
+            }
             return;
         }
         
@@ -607,7 +615,7 @@ opponentsDefeated = 0;
         }
         
         if (currentDelegate.getPendingReturnToLobby()) {
-            showArenaLobby();
+            startNewArenaMatch();
             return;
         }
         
@@ -938,6 +946,25 @@ private boolean simulateArenaStep() {
         } else {
             main.getTextPanel().addPara("Net Result: -" + rewards.totalBet + " Stargems", Color.ORANGE);
         }
+}
+    
+    private void startNewArenaMatch() {
+        cachedTotalBet = 0;
+        arenaBets.clear();
+        
+        activeArena = new SpiralAbyssArena();
+        arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
+        chosenChampion = null;
+        opponentsDefeated = 0;
+        currentRound = 0;
+        currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
+        battleLog.clear();
+        battleEnded = false;
+        finalWinnerIndex = -1;
+        finalReward = 0;
+        currentDelegate = null;
+        
+        showArenaVisualPanel();
     }
 
 private void resetArenaState() {

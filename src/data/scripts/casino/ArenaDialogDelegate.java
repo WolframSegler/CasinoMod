@@ -221,6 +221,31 @@ if (arenaPanel != null) {
 
     }
     
+    public void resetForNewMatch(
+            List<SpiralAbyssArena.SpiralGladiator> combatants,
+            int currentRound,
+            int totalBet,
+            List<BetInfo> bets,
+            List<String> battleLog) {
+        
+        this.battleEnded = false;
+        this.winnerIndex = -1;
+        this.totalReward = 0;
+        this.finished = false;
+        
+        this.combatants = combatants;
+        this.currentRound = currentRound;
+        this.totalBet = totalBet;
+        this.bets = bets;
+        this.battleLog = battleLog;
+        
+        clearPendingActions();
+        
+        if (arenaPanel != null) {
+            arenaPanel.resetForNewMatch(combatants, currentRound, totalBet, bets, battleLog);
+        }
+    }
+    
     public boolean getPendingLeave() {
         return pendingLeave;
     }

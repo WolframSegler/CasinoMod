@@ -778,22 +778,17 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         }
         
         if (returnToLobbyPanel != null) {
-            if (battleEnded) {
-                returnToLobbyPanel.getPosition().inTL(leftX, bottomY);
-            } else {
-                returnToLobbyPanel.getPosition().inTL(-1000f, -1000f);
-            }
+            returnToLobbyPanel.getPosition().inTL(-1000f, -1000f);
         }
         
         if (leaveButtonPanel != null) {
-            if (!battleEnded && !showBetAmounts && !showChampionSelect) {
-                // Leave at normal position when not showing champion select or bet amounts
+            if (battleEnded) {
                 leaveButtonPanel.getPosition().inTL(leftX, bottomY);
-            } else if (!battleEnded && showChampionSelect) {
-                // Leave to the right of Cancel when showing champion select
+            } else if (!showBetAmounts && !showChampionSelect) {
+                leaveButtonPanel.getPosition().inTL(leftX, bottomY);
+            } else if (showChampionSelect) {
                 leaveButtonPanel.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
-            } else if (!battleEnded && showBetAmounts) {
-                // Leave to the right of Cancel when showing bet amounts
+            } else if (showBetAmounts) {
                 leaveButtonPanel.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
             } else {
                 leaveButtonPanel.getPosition().inTL(-1000f, -1000f);
@@ -801,7 +796,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         }
         
         if (suspendPanel != null) {
-            if (currentRound > 0 && !showingBetAmounts && !battleEnded) {
+            if (!battleEnded && currentRound > 0 && !showingBetAmounts) {
                 suspendPanel.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
             } else {
                 suspendPanel.getPosition().inTL(-1000f, -1000f);
@@ -825,7 +820,9 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         }
         
         if (watchNextPanel != null) {
-            if (currentRound > 0 && !showingBetAmounts && !battleEnded) {
+            if (battleEnded) {
+                watchNextPanel.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
+            } else if (currentRound > 0 && !showingBetAmounts) {
                 watchNextPanel.getPosition().inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 4, bottomY);
             } else {
                 watchNextPanel.getPosition().inTL(-1000f, -1000f);
@@ -1141,7 +1138,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             boolean hideInstruction = false;
             
             if (battleEnded) {
-                newInstructionText = "Click Return to Lobby";
+                newInstructionText = "Click Next Round for a new match, or Leave to exit";
             } else if (currentRound > 0 && addingBetDuringBattle && selectedChampionIndex < 0) {
                 newInstructionText = "Select a champion to add bet on:";
             } else if (currentRound > 0 && addingBetDuringBattle && selectedChampionIndex >= 0) {
@@ -1755,6 +1752,46 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         this.showingBetAmounts = false;
         this.addingBetDuringBattle = false;
         this.selectedChampionIndex = -1;
+        
+        oddsCached = false;
+        cacheOdds();
+        
+        updateLabels();
+    }
+    
+    public void resetForNewMatch(
+            List<SpiralAbyssArena.SpiralGladiator> combatants,
+            int currentRound,
+            int totalBet,
+            List<BetInfo> bets,
+            List<String> battleLog) {
+        
+        this.battleEnded = false;
+        this.winnerIndex = -1;
+        this.totalReward = 0;
+        this.rewardBreakdown = null;
+        this.showingBetAmounts = false;
+        this.addingBetDuringBattle = false;
+        this.selectedChampionIndex = -1;
+        
+        this.combatants = combatants;
+        this.currentRound = currentRound;
+        this.totalBet = totalBet;
+        this.bets = bets;
+        this.battleLog = battleLog;
+        
+        shipStateInitialized = false;
+        for (int i = 0; i < 5; i++) {
+            lastShipHp[i] = -1;
+            lastShipMaxHp[i] = -1;
+            lastShipDead[i] = false;
+            lastShipOdds[i] = -1;
+            lastShipBetCount[i] = -1;
+        }
+        
+        lastBattleLogSize = -1;
+        cachedParsedEntries.clear();
+        hullIdDeadStatus.clear();
         
         oddsCached = false;
         cacheOdds();
