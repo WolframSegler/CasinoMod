@@ -63,10 +63,70 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     protected float opponentThinkTimer = 0f;
     protected static final float OPPONENT_THINK_DELAY = 0.8f; // seconds before opponent acts
     
-
-    
     // Track if buttons have been created to avoid duplicates
     protected boolean buttonsCreated = false;
+    
+    // ============================================================================
+    // CARD FLIP ANIMATION
+    // ============================================================================
+    public static class CardFlipAnimation {
+        public enum Phase { HIDDEN, FLIPPING, REVEALED }
+        
+        public Phase phase = Phase.HIDDEN;
+        public float progress = 0f;
+        public float delay = 0f;
+        
+        public static final float FLIP_DURATION = 0.4f;
+        public static final float STAGGER_DELAY = 0.08f;
+        
+        public boolean isAnimating() { return phase == Phase.FLIPPING; }
+        public boolean isRevealed() { return phase == Phase.REVEALED; }
+        public boolean shouldShowBack() { 
+            return phase == Phase.HIDDEN || (phase == Phase.FLIPPING && progress < 0.5f); 
+        }
+        
+        public float getWidthScale() {
+            if (phase != Phase.FLIPPING) return 1f;
+            return (float) Math.abs(Math.cos(progress * Math.PI));
+        }
+        
+        public void advance(float amount) {
+            if (phase == Phase.HIDDEN && delay > 0) {
+                delay -= amount;
+                if (delay <= 0) {
+                    delay = 0;
+                    phase = Phase.FLIPPING;
+                }
+            }
+            if (phase == Phase.FLIPPING) {
+                progress += amount / FLIP_DURATION;
+                if (progress >= 1f) {
+                    progress = 1f;
+                    phase = Phase.REVEALED;
+                }
+            }
+        }
+        
+        public void triggerFlip(float staggerDelay) {
+            this.delay = staggerDelay;
+            this.progress = 0f;
+        }
+        
+        public void reset() {
+            phase = Phase.HIDDEN;
+            progress = 0f;
+            delay = 0f;
+        }
+    }
+    
+    protected CardFlipAnimation[] playerCardAnimations = new CardFlipAnimation[2];
+    protected CardFlipAnimation[] opponentCardAnimations = new CardFlipAnimation[2];
+    protected CardFlipAnimation[] communityCardAnimations = new CardFlipAnimation[5];
+    
+    protected PokerGame.Round lastAnimatedRound = null;
+    protected int lastAnimatedCommunityCount = 0;
+    protected boolean playerCardsAnimated = false;
+    protected boolean opponentCardsAnimated = false;
     
     // ============================================================================
     // CACHED STRING VALUES - Avoid string formatting every frame
@@ -250,9 +310,17 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     // INITIALIZATION
     // ============================================================================
     
-    public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
+public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         this.game = game;
         this.actionCallback = callback;
+        
+        for (int i = 0; i < 2; i++) {
+            playerCardAnimations[i] = new CardFlipAnimation();
+            opponentCardAnimations[i] = new CardFlipAnimation();
+        }
+        for (int i = 0; i < 5; i++) {
+            communityCardAnimations[i] = new CardFlipAnimation();
+        }
     }
     
     /**
@@ -1728,6 +1796,45 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
         GL11.glVertex2f(x + CARD_WIDTH - 10, y + 10);
         GL11.glVertex2f(x + 10, y + CARD_HEIGHT - 10);
         GL11.glEnd();
+    }
+    
+    /**
+     * Renders a card with flip animation support.
+     * Uses GL11 scale transform to simulate 3D card flip from top-down perspective.
+     */
+    protected void renderCardAnimated(float x, float y, PokerGame.PokerGameLogic.Card card,
+            CardFlipAnimation anim, float alphaMult) {
+        
+        if (anim == null) {
+            renderCardFaceUp(x, y, card, alphaMult);
+            return;
+        }
+        
+        if (anim.phase == CardFlipAnimation.Phase.HIDDEN) {
+            renderCardFaceDown(x, y, alphaMult);
+            return;
+        }
+        
+        if (anim.phase == CardFlipAnimation.Phase.REVEALED) {
+            renderCardFaceUp(x, y, card, alphaMult);
+            return;
+        }
+        
+        float widthScale = anim.getWidthScale();
+        float cardCenterX = x + CARD_WIDTH / 2f;
+        
+        GL11.glPushMatrix();
+        GL11.glTranslatef(cardCenterX, y, 0);
+        GL11.glScalef(widthScale, 1f, 1f);
+        GL11.glTranslatef(-cardCenterX, -y, 0);
+        
+        if (anim.shouldShowBack()) {
+            renderCardFaceDown(x, y, alphaMult);
+        } else {
+            renderCardFaceUp(x, y, card, alphaMult);
+        }
+        
+        GL11.glPopMatrix();
     }
     
     /**

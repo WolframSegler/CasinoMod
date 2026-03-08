@@ -12,7 +12,7 @@ public class PokerGame {
 
     public enum CurrentPlayer { PLAYER, OPPONENT }
 
-    public static class PokerState {
+public static class PokerState {
         public List<PokerGameLogic.Card> playerHand;
         public List<PokerGameLogic.Card> opponentHand;
         public List<PokerGameLogic.Card> communityCards;
@@ -27,8 +27,10 @@ public class PokerGame {
         public PokerGameLogic.HandRank opponentHandRank;
         public CurrentPlayer currentPlayer;
         public int bigBlind;
-public CurrentPlayer folder = null; // Tracks who folded (if anyone)
-        public int lastPotWon = 0; // Last pot amount (for display purposes)
+        public CurrentPlayer folder = null;
+        public int lastPotWon = 0;
+        public boolean playerHasActed = false;
+        public boolean opponentHasActed = false;
     }
 
     private final PokerState state;
@@ -1749,10 +1751,12 @@ public CurrentPlayer folder = null; // Tracks who folded (if anyone)
 
 
 
-        state.playerBet = 0;
+state.playerBet = 0;
         state.opponentBet = 0;
         state.pot = 0;
-        state.folder = null; // Reset folder for new hand
+        state.folder = null;
+        state.playerHasActed = false;
+        state.opponentHasActed = false;
 
         state.dealer = state.dealer == Dealer.PLAYER ? Dealer.OPPONENT : Dealer.PLAYER;
 
@@ -1856,7 +1860,8 @@ public CurrentPlayer folder = null; // Tracks who folded (if anyone)
                 state.playerBet = state.opponentBet;
                 state.pot += callAmount;
                 break;
-            case RAISE:
+case RAISE:
+                state.opponentHasActed = false; // Opponent must respond to raise
                 // raiseAmount is the desired total bet size (e.g., 3x opponent's raise)
                 // NOT an additional amount on top of opponent's bet
                 int totalBet = raiseAmount;
@@ -1886,7 +1891,8 @@ public CurrentPlayer folder = null; // Tracks who folded (if anyone)
                     state.pot += raiseAmountActual;
                 }
                 break;
-            case ALL_IN:
+case ALL_IN:
+                state.opponentHasActed = false; // Opponent must respond to all-in
                 int allInAmount = state.playerStack;
                 int opponentContributionAllIn = state.opponentBet;
                 int playerContributionAfterAllIn = state.playerBet + allInAmount;
@@ -1911,12 +1917,14 @@ public CurrentPlayer folder = null; // Tracks who folded (if anyone)
                 break;
         }
 
-        boolean isRaise = action == Action.RAISE || action == Action.ALL_IN;
+boolean isRaise = action == Action.RAISE || action == Action.ALL_IN;
         boolean isFold = action == Action.FOLD;
         boolean isCheck = action == Action.CHECK;
         boolean isPreFlop = state.round == Round.PREFLOP;
         boolean putMoneyInPot = action == Action.CALL || action == Action.RAISE || action == Action.ALL_IN;
         ai.trackPlayerAction(isRaise, isFold, isCheck, isPreFlop, putMoneyInPot);
+
+        state.playerHasActed = true;
 
         if (state.round != Round.SHOWDOWN) {
             state.currentPlayer = CurrentPlayer.OPPONENT;
@@ -1959,7 +1967,8 @@ public CurrentPlayer folder = null; // Tracks who folded (if anyone)
                 state.opponentBet = state.playerBet;
                 state.pot += callAmount;
                 break;
-            case RAISE:
+case RAISE:
+                state.playerHasActed = false; // Player must respond to raise
                 int totalBet = response.raiseAmount;
                 int raiseAmountActual = totalBet - state.opponentBet;
                 // Protect against betting more than available stack
@@ -1991,7 +2000,9 @@ public CurrentPlayer folder = null; // Tracks who folded (if anyone)
                     ai.aiCommittedThisRound += raiseAmountActual;
                 }
                 break;
-        }
+}
+
+        state.opponentHasActed = true;
 
         if (state.round != Round.SHOWDOWN) {
             state.currentPlayer = CurrentPlayer.PLAYER;
@@ -1999,15 +2010,17 @@ public CurrentPlayer folder = null; // Tracks who folded (if anyone)
         }
     }
 
-    private void checkRoundProgression() {
-        if (state.playerBet == state.opponentBet) {
+private void checkRoundProgression() {
+        if (state.playerBet == state.opponentBet && state.playerHasActed && state.opponentHasActed) {
             advanceRound();
         }
     }
 
-    private void advanceRound() {
+private void advanceRound() {
         state.playerBet = 0;
         state.opponentBet = 0;
+        state.playerHasActed = false;
+        state.opponentHasActed = false;
 
         // Reset AI's committed chips tracking when advancing to a new betting round
         ai.resetCommittedChips();
