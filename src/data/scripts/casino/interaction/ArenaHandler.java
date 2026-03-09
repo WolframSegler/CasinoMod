@@ -102,7 +102,10 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
         handlers.put(OPTION_ARENA_LOBBY, option -> showArenaLobby());
         handlers.put("arena_add_bet_menu", option -> showAddBetMenu());
         handlers.put(OPTION_HOW_TO_ARENA, option -> main.help.showArenaHelp());
-        handlers.put(OPTION_BACK_MENU, option -> main.showMenu());
+        handlers.put(OPTION_BACK_MENU, option -> {
+            resetArenaState();
+            main.showMenu();
+        });
         handlers.put(OPTION_ARENA_RESUME, option -> restoreSuspendedArena());
 
         handlers.put(OPTION_ARENA_WATCH_NEXT, option -> simulateArenaStep());
@@ -115,7 +118,10 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
         handlers.put(OPTION_ARENA_SUSPEND, option -> suspendArena());
         handlers.put(OPTION_ARENA_ADD_ANOTHER_BET, option -> showAddAnotherBetMenu());
         handlers.put(OPTION_ARENA_STATUS, option -> showArenaVisualPanel());
-        handlers.put(OPTION_ARENA_LEAVE_NOW, option -> main.showMenu());
+        handlers.put(OPTION_ARENA_LEAVE_NOW, option -> {
+            resetArenaState();
+            main.showMenu();
+        });
         handlers.put(OPTION_ARENA_START_BATTLE, option -> {
             int chosenIdx = -1;
             for (int i = 0; i < arenaCombatants.size(); i++) {
@@ -576,14 +582,19 @@ opponentsDefeated = 0;
                 handleArenaPanelDismissed();
             }
         );
+        activeDialogDelegate = currentDelegate;
         
         main.getDialog().showCustomVisualDialog(1000f, 700f, currentDelegate);
     }
     
-private void handleArenaPanelDismissed() {
-        if (currentDelegate == null) return;
+private ArenaDialogDelegate activeDialogDelegate = null;
+
+    private void handleArenaPanelDismissed() {
+        if (activeDialogDelegate == null) return;
         
-        if (currentDelegate.getPendingWatchNext()) {
+        ArenaDialogDelegate triggeredDelegate = activeDialogDelegate;
+        
+        if (triggeredDelegate.getPendingWatchNext()) {
             if (battleEnded) {
                 startNewArenaMatch();
             } else {
@@ -592,39 +603,39 @@ private void handleArenaPanelDismissed() {
             return;
         }
         
-        if (currentDelegate.getPendingSkipToEnd()) {
+        if (triggeredDelegate.getPendingSkipToEnd()) {
             if (battleEnded) {
                 startNewArenaMatch();
             } else {
-                boolean result;
-                do {
-                    result = simulateArenaStep();
-                } while (result);
+                simulateAllRemainingSteps();
             }
             return;
         }
         
-        if (currentDelegate.getPendingSuspend()) {
+        if (triggeredDelegate.getPendingSuspend()) {
             suspendArena();
             return;
         }
         
-        if (currentDelegate.getPendingLeave()) {
+        if (triggeredDelegate.getPendingLeave()) {
+            activeDialogDelegate = null;
+            currentDelegate = null;
+            resetArenaState();
             main.showMenu();
             return;
         }
         
-        if (currentDelegate.getPendingReturnToLobby()) {
+        if (triggeredDelegate.getPendingReturnToLobby()) {
             startNewArenaMatch();
             return;
         }
         
-        if (currentDelegate.getPendingBetAmount() > 0 && currentDelegate.getPendingChampionIndex() >= 0) {
-            performAddBetToChampion(currentDelegate.getPendingChampionIndex(), currentDelegate.getPendingBetAmount());
+        if (triggeredDelegate.getPendingBetAmount() > 0 && triggeredDelegate.getPendingChampionIndex() >= 0) {
+            performAddBetToChampion(triggeredDelegate.getPendingChampionIndex(), triggeredDelegate.getPendingBetAmount());
             return;
         }
         
-        if (currentDelegate.getPendingStartBattle()) {
+        if (triggeredDelegate.getPendingStartBattle()) {
             int chosenIdx = -1;
             for (int i = 0; i < arenaCombatants.size(); i++) {
                 if (chosenChampion != null &&
@@ -635,17 +646,20 @@ private void handleArenaPanelDismissed() {
             }
             if (chosenIdx != -1) {
                 startArenaBattle(chosenIdx);
+            } else {
+                main.showMenu();
             }
             return;
         }
         
+        activeDialogDelegate = null;
         currentDelegate = null;
+        main.showMenu();
     }
 
 private boolean simulateArenaStep() {
         List<String> logEntries = activeArena.simulateStep(arenaCombatants, currentRound);
         
-        // Invalidate odds cache after state change (HP values changed)
         activeArena.invalidateOddsCache();
 
         currentRound++;
@@ -664,12 +678,38 @@ private boolean simulateArenaStep() {
         }
 
         for (String logEntry : logEntries) {
-            // processLogEntry(logEntry);
             battleLog.add(logEntry);
         }
         
         showArenaVisualPanel();
         return true;
+    }
+
+    private void simulateAllRemainingSteps() {
+        boolean result;
+        do {
+            List<String> logEntries = activeArena.simulateStep(arenaCombatants, currentRound);
+            
+            activeArena.invalidateOddsCache();
+
+            currentRound++;
+
+            int aliveCount = 0;
+            for (SpiralAbyssArena.SpiralGladiator gladiator : arenaCombatants) {
+                if (!gladiator.isDead) {
+                    gladiator.turnsSurvived++;
+                    aliveCount++;
+                }
+            }
+
+            for (String logEntry : logEntries) {
+                battleLog.add(logEntry);
+            }
+            
+            result = !(logEntries.isEmpty() && aliveCount <= 1);
+        } while (result);
+        
+        finishArenaBattle();
     }
 
     private void finishArenaBattle() {
@@ -701,6 +741,7 @@ private boolean simulateArenaStep() {
                 handleArenaPanelDismissed();
             }
         );
+        activeDialogDelegate = currentDelegate;
         
         currentDelegate.setBattleEnded(winnerIndex, finalReward, breakdown);
         main.getDialog().showCustomVisualDialog(1000f, 700f, currentDelegate);
@@ -963,11 +1004,12 @@ private boolean simulateArenaStep() {
         finalWinnerIndex = -1;
         finalReward = 0;
         currentDelegate = null;
+        activeDialogDelegate = null;
         
         showArenaVisualPanel();
     }
 
-private void resetArenaState() {
+    private void resetArenaState() {
         activeArena = null;
         arenaCombatants = null;
         chosenChampion = null;
@@ -980,6 +1022,7 @@ private void resetArenaState() {
         finalWinnerIndex = -1;
         finalReward = 0;
         currentDelegate = null;
+        activeDialogDelegate = null;
     }
 
     private void showBetAmountSelection(int championIndex) {

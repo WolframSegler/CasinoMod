@@ -462,6 +462,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         void onSuspend();
         void onLeave();
         void onReturnToLobby();
+        void onEscape();
     }
     
     public static class RewardBreakdown {
@@ -1566,8 +1567,8 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                     if (showingBetAmounts) {
                         showingBetAmounts = false;
                         selectedChampionIndex = -1;
-                    } else if (callbacks != null) {
-                        callbacks.dismissDialog();
+                    } else if (actionCallback != null) {
+                        actionCallback.onEscape();
                     }
                     return;
                 }

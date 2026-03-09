@@ -91,10 +91,14 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
         }
         
         public void advance(float amount) {
-            if (phase == Phase.HIDDEN && delay > 0) {
-                delay -= amount;
-                if (delay <= 0) {
-                    delay = 0;
+            if (phase == Phase.HIDDEN) {
+                if (delay > 0) {
+                    delay -= amount;
+                    if (delay <= 0) {
+                        delay = 0;
+                        phase = Phase.FLIPPING;
+                    }
+                } else {
                     phase = Phase.FLIPPING;
                 }
             }
@@ -127,6 +131,44 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     protected int lastAnimatedCommunityCount = 0;
     protected boolean playerCardsAnimated = false;
     protected boolean opponentCardsAnimated = false;
+    
+    public void resetCardAnimations() {
+        for (int i = 0; i < 2; i++) {
+            playerCardAnimations[i].reset();
+            opponentCardAnimations[i].reset();
+        }
+        for (int i = 0; i < 5; i++) {
+            communityCardAnimations[i].reset();
+        }
+        lastAnimatedRound = null;
+        lastAnimatedCommunityCount = 0;
+        playerCardsAnimated = false;
+        opponentCardsAnimated = false;
+    }
+    
+    protected void checkAndTriggerAnimations(PokerGame.PokerState state) {
+        if (!playerCardsAnimated && state.playerHand != null && !state.playerHand.isEmpty()) {
+            playerCardsAnimated = true;
+            for (int i = 0; i < state.playerHand.size() && i < 2; i++) {
+                playerCardAnimations[i].triggerFlip(i * CardFlipAnimation.STAGGER_DELAY);
+            }
+        }
+        
+        int currentCommunityCount = state.communityCards != null ? state.communityCards.size() : 0;
+        if (currentCommunityCount > lastAnimatedCommunityCount) {
+            for (int i = lastAnimatedCommunityCount; i < currentCommunityCount && i < 5; i++) {
+                communityCardAnimations[i].triggerFlip((i - lastAnimatedCommunityCount) * CardFlipAnimation.STAGGER_DELAY);
+            }
+            lastAnimatedCommunityCount = currentCommunityCount;
+        }
+        
+        if (state.round == PokerGame.Round.SHOWDOWN && state.folder == null && !opponentCardsAnimated) {
+            opponentCardsAnimated = true;
+            for (int i = 0; i < 2; i++) {
+                opponentCardAnimations[i].triggerFlip(i * CardFlipAnimation.STAGGER_DELAY);
+            }
+        }
+    }
     
     // ============================================================================
     // CACHED STRING VALUES - Avoid string formatting every frame
@@ -1670,7 +1712,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
     /**
      * Renders community cards in a row at center of table.
      */
-    protected void renderCommunityCards(float cx, float cy, 
+protected void renderCommunityCards(float cx, float cy, 
             List<PokerGame.PokerGameLogic.Card> cards, float alphaMult) {
         int numCards = cards.size();
         float totalWidth = numCards * CARD_WIDTH + (numCards - 1) * CARD_SPACING;
@@ -1679,7 +1721,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         for (int i = 0; i < numCards; i++) {
             PokerGame.PokerGameLogic.Card card = cards.get(i);
             float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
-            renderCard(cardX, cy - CARD_HEIGHT/2, card, true, alphaMult);
+            renderCardAnimated(cardX, cy - CARD_HEIGHT/2, card, communityCardAnimations[i], alphaMult);
         }
     }
     
@@ -1700,7 +1742,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         for (int i = 0; i < cards.size(); i++) {
             PokerGame.PokerGameLogic.Card card = cards.get(i);
             float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
-            renderCardFaceUp(cardX, y, card, alphaMult);
+            renderCardAnimated(cardX, y, card, playerCardAnimations[i], alphaMult);
         }
         
         GL11.glColor4f(1f, 1f, 1f, 1f);
@@ -1725,7 +1767,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             PokerGame.PokerGameLogic.Card card = cards.get(i);
             float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
             if (showCards) {
-                renderCardFaceUp(cardX, y, card, alphaMult);
+                renderCardAnimated(cardX, y, card, opponentCardAnimations[i], alphaMult);
             } else {
                 renderCardFaceDown(cardX, y, alphaMult);
             }
@@ -2271,8 +2313,17 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             }
         }
         
-        // Update buttons if turn changed
-        // (Buttons are recreated when state changes significantly)
+        // Advance all card animations
+        for (int i = 0; i < 2; i++) {
+            playerCardAnimations[i].advance(amount);
+            opponentCardAnimations[i].advance(amount);
+        }
+        for (int i = 0; i < 5; i++) {
+            communityCardAnimations[i].advance(amount);
+        }
+        
+        // Check for new animations to trigger
+        checkAndTriggerAnimations(state);
     }
     
     /**
@@ -2287,8 +2338,15 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
      * Updates the game reference without recreating buttons.
      * This is used for smooth in-place updates during gameplay.
      */
-    public void updateGameState(PokerGame game) {
+public void updateGameState(PokerGame game) {
         this.game = game;
+        
+        PokerGame.PokerState state = game.getState();
+        
+        // Check if this is a new hand (transition to PREFLOP from non-PREFLOP)
+        if (state.round == PokerGame.Round.PREFLOP && lastAnimatedRound != PokerGame.Round.PREFLOP) {
+            resetCardAnimations();
+        }
         
         waitingForOpponent = false;
         opponentThinkTimer = 0f;
@@ -2310,6 +2368,8 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         for (int i = 0; i < 5; i++) {
             lastCommunityCardRanks[i] = null;
         }
+        
+        lastAnimatedRound = state.round;
         
         // DON'T recreate buttons - they persist across state changes
         // Button visibility is updated in updateButtonVisibility() called from advance()

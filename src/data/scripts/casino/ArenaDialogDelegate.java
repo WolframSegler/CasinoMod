@@ -133,6 +133,14 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate {
                     callbacks.dismissDialog();
                 }
             }
+            
+            @Override
+            public void onEscape() {
+                pendingLeave = true;
+                if (callbacks != null) {
+                    callbacks.dismissDialog();
+                }
+            }
         };
         
         arenaPanel = new ArenaPanelUI(combatants, currentRound, totalBet, bets, battleLog, actionCallback);
