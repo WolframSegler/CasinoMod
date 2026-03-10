@@ -356,9 +356,9 @@ public class GachaHandler {
     private void showConvertSelectionPicker(List<FleetMemberAPI> obtainedShips) {
         main.getDialog().showFleetMemberPickerDialog(
             "Select ships you want to convert to Stargems:",
-            "Confirm Selection",
+            "OK",
             "Cancel",
-            10,
+            8,
             7,
             80,
             true,
@@ -414,7 +414,7 @@ public class GachaHandler {
         main.textPanel.addPara("Current Ship Pool (" + potentialDrops.size() + " ships):", Color.CYAN);
         main.textPanel.addPara("These are the ships currently available in the gacha pool.", Color.GRAY);
 
-        main.getDialog().showFleetMemberPickerDialog("View Ship Pool:", null, "Back", 10, 7, 80, false, false, potentialDrops,
+        main.getDialog().showFleetMemberPickerDialog("View Ship Pool:", null, "Close", 8, 7, 80, false, false, potentialDrops,
             new FleetMemberPickerListener() {
                 public void pickedFleetMembers(List<FleetMemberAPI> members) {
                      showGachaMenu();

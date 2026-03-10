@@ -627,7 +627,10 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         
         float champButtonX = BOX_WIDTH + MARGIN + 15f;
         float startY = MARGIN + 10f;
-        float totalItemHeight = BOX_HEIGHT + BOX_SPACING + 16f + 11f + 13f + ENTRY_SPACING;
+        final float NAME_HEIGHT = 16f;
+        final float HP_HEIGHT = 11f;
+        final float ODDS_HEIGHT = 30f;
+        float totalItemHeight = BOX_HEIGHT + BOX_SPACING + NAME_HEIGHT + HP_HEIGHT + ODDS_HEIGHT + ENTRY_SPACING;
         
         for (int i = 0; i < 5; i++) {
             float shipY = startY + i * totalItemHeight;
@@ -760,7 +763,10 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         
         float champButtonX = BOX_WIDTH + MARGIN + 15f;
         float startY = MARGIN + 10f;
-        float totalItemHeight = BOX_HEIGHT + BOX_SPACING + 16f + 11f + 13f + ENTRY_SPACING;
+        final float NAME_HEIGHT = 16f;
+        final float HP_HEIGHT = 11f;
+        final float ODDS_HEIGHT = 30f;
+        float totalItemHeight = BOX_HEIGHT + BOX_SPACING + NAME_HEIGHT + HP_HEIGHT + ODDS_HEIGHT + ENTRY_SPACING;
         
         for (int i = 0; i < championSelectPanels.size(); i++) {
             CustomPanelAPI p = championSelectPanels.get(i);
@@ -1803,7 +1809,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             selectedChampionIndex = -1;
             addingBetDuringBattle = false;
         }
-        lastCurrentRound = currentRound;
         
         updateLabels();
     }
