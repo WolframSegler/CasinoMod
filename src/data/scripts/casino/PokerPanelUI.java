@@ -146,29 +146,38 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
         opponentCardsAnimated = false;
     }
     
-    protected void checkAndTriggerAnimations(PokerGame.PokerState state) {
-        // Player cards - existing logic works
+    protected void checkAndTriggerAnimations(PokerGame.PokerState state, PokerGame.Round previousRound, int previousCommunityCount) {
+        // Player cards - trigger when hand is dealt and not yet animated
+        // This uses a simple boolean flag that resets only on new hands
         if (!playerCardsAnimated && state.playerHand != null && !state.playerHand.isEmpty()) {
             playerCardsAnimated = true;
             for (int i = 0; i < state.playerHand.size() && i < 2; i++) {
                 playerCardAnimations[i].triggerFlip(i * CardFlipAnimation.STAGGER_DELAY);
             }
         }
-        
-        // Community cards - trigger for any cards that need animation
+
+        // Community cards - trigger for any NEW cards (detected by comparing with previous count)
+        // Use previousCommunityCount (captured BEFORE update) instead of lastAnimatedCommunityCount
         int currentCommunityCount = state.communityCards != null ? state.communityCards.size() : 0;
-        if (currentCommunityCount > lastAnimatedCommunityCount) {
-            for (int i = lastAnimatedCommunityCount; i < currentCommunityCount && i < 5; i++) {
+        if (currentCommunityCount > previousCommunityCount) {
+            for (int i = previousCommunityCount; i < currentCommunityCount && i < 5; i++) {
                 // Only trigger if animation hasn't started yet
                 if (communityCardAnimations[i].phase == CardFlipAnimation.Phase.HIDDEN) {
-                    communityCardAnimations[i].triggerFlip((i - lastAnimatedCommunityCount) * CardFlipAnimation.STAGGER_DELAY);
+                    // Stagger delay based on how many new cards (0, 1, or 2 previous cards)
+                    float staggerDelay = (i - previousCommunityCount) * CardFlipAnimation.STAGGER_DELAY;
+                    communityCardAnimations[i].triggerFlip(staggerDelay);
                 }
             }
-            lastAnimatedCommunityCount = currentCommunityCount;
+            // NOTE: lastAnimatedCommunityCount is now updated in updateGameState AFTER this call
         }
-        
+
         // Opponent cards - trigger at showdown for any hidden cards
-        if (state.round == PokerGame.Round.SHOWDOWN && state.folder == null) {
+        // Check transition INTO showdown (previousRound was not SHOWDOWN, now it is)
+        // This ensures animation triggers exactly once when entering showdown
+        // Also handles initial state (previousRound is null) - if we're already at showdown, animate
+        boolean enteringShowdown = state.round == PokerGame.Round.SHOWDOWN && 
+                                   (previousRound == null || previousRound != PokerGame.Round.SHOWDOWN);
+        if (enteringShowdown && state.folder == null) {
             boolean anyTriggered = false;
             for (int i = 0; i < 2; i++) {
                 if (opponentCardAnimations[i].phase == CardFlipAnimation.Phase.HIDDEN) {
@@ -2350,23 +2359,30 @@ protected void renderCommunityCards(float cx, float cy,
      */
 public void updateGameState(PokerGame game) {
         this.game = game;
-        
+
         PokerGame.PokerState state = game.getState();
-        
+
+        // CAPTURE old state BEFORE any modifications - critical for animation detection
+        PokerGame.Round previousRound = lastAnimatedRound;
+        int previousCommunityCount = lastAnimatedCommunityCount;
+
         // Check if this is a new hand (transition to PREFLOP from non-PREFLOP)
-        if (state.round == PokerGame.Round.PREFLOP && lastAnimatedRound != PokerGame.Round.PREFLOP) {
+        if (state.round == PokerGame.Round.PREFLOP && previousRound != PokerGame.Round.PREFLOP) {
             resetCardAnimations();
+            // Re-capture after reset
+            previousRound = lastAnimatedRound;
+            previousCommunityCount = lastAnimatedCommunityCount;
         }
-        
+
         waitingForOpponent = false;
         opponentThinkTimer = 0f;
-        
+
         resultCached = false;
         cachedPlayerScore = null;
         cachedOpponentScore = null;
         cachedResultText = null;
         cachedResultColor = null;
-        
+
         lastCardUpdateRound = null;
         lastPlayerHandSize = -1;
         lastOpponentHandSize = -1;
@@ -2378,18 +2394,24 @@ public void updateGameState(PokerGame game) {
         for (int i = 0; i < 5; i++) {
             lastCommunityCardRanks[i] = null;
         }
-        
-        lastAnimatedRound = state.round;
-        
-        // Reset community card animation tracking if needed
+
+        // Calculate current values but DON'T update tracking variables yet
+        int currentCommunityCount = state.communityCards != null ? state.communityCards.size() : 0;
+
+        // Reset community card animation tracking if cards are cleared (new hand)
         if (lastAnimatedCommunityCount > 0 && state.communityCards != null && state.communityCards.isEmpty()) {
             lastAnimatedCommunityCount = 0;
+            previousCommunityCount = 0;
         }
-        
-        // Check for new animations to trigger based on updated state
-        // This is called here instead of every frame in advance()
-        checkAndTriggerAnimations(state);
-        
+
+        // Check for new animations using CAPTURED old values
+        // This must happen BEFORE we update tracking variables
+        checkAndTriggerAnimations(state, previousRound, previousCommunityCount);
+
+        // NOW update tracking variables AFTER animation check
+        lastAnimatedRound = state.round;
+        lastAnimatedCommunityCount = currentCommunityCount;
+
         // DON'T recreate buttons - they persist across state changes
         // Button visibility is updated in updateButtonVisibility() called from advance()
     }

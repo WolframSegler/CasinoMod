@@ -106,6 +106,9 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
             cachedTotalBet = 0;
             currentBetAmount = 0;
             chosenChampion = null;
+            currentRound = 0;
+            opponentsDefeated = 0;
+            battleLog.clear();
             showArenaLobby();
         });
         handlers.put("arena_add_bet_menu", option -> showAddBetMenu());
@@ -391,6 +394,9 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
         if (activeArena == null || arenaCombatants == null || arenaCombatants.isEmpty()) {
             activeArena = new SpiralAbyssArena();
             arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
+            currentRound = 0;
+            opponentsDefeated = 0;
+            battleLog.clear();
             currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
         }
 
@@ -409,6 +415,9 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
         if (activeArena == null || arenaCombatants == null || arenaCombatants.isEmpty()) {
             activeArena = new SpiralAbyssArena();
             arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
+            currentRound = 0;
+            opponentsDefeated = 0;
+            battleLog.clear();
             currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
         }
         
@@ -1025,6 +1034,9 @@ private boolean simulateArenaStep() {
         finalReward = 0;
         currentDelegate = null;
         activeDialogDelegate = null;
+        
+        // Clear any suspended arena memory to ensure fresh start
+        clearSuspendedArenaMemory();
         
         showArenaVisualPanel();
     }
