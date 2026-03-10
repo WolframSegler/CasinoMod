@@ -452,6 +452,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected boolean[] lastShipDead = new boolean[5];
     protected float[] lastShipOdds = new float[5];
     protected int[] lastShipBetCount = new int[5];
+    protected String[] lastShipHullIds = new String[5];
     protected boolean shipStateInitialized = false;
     
     protected int getTotalBetOnShip(int shipIndex) {
@@ -1060,6 +1061,17 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         
         renderBattleLogSprites(x, y, w, h, alphaMult);
         
+        // Draw divider line between battle log and reward breakdown
+        float dividerX = x + SHIP_COLUMN_WIDTH + CENTER_COLUMN_WIDTH;
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glColor4f(0.3f, 0.3f, 0.4f, alphaMult * 0.5f);
+        GL11.glLineWidth(1f);
+        GL11.glBegin(GL11.GL_LINES);
+        GL11.glVertex2f(dividerX, y + MARGIN);
+        GL11.glVertex2f(dividerX, y + h - MARGIN);
+        GL11.glEnd();
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        
         updateLabels();
         updateButtonVisibility();
         
@@ -1216,6 +1228,36 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             for (int i = 0; i < combatants.size() && i < 5; i++) {
                 SpiralAbyssArena.SpiralGladiator ship = combatants.get(i);
                 
+                // Calculate positions
+                final float NAME_HEIGHT = 16f;
+                final float HP_HEIGHT = 11f;
+                final float ODDS_HEIGHT = 30f;
+                float startY = MARGIN + 10f;
+                float totalItemHeight = BOX_HEIGHT + BOX_SPACING + NAME_HEIGHT + HP_HEIGHT + ODDS_HEIGHT + ENTRY_SPACING;
+                float shipY = startY + i * totalItemHeight;
+                
+                // Show panels if they were hidden
+                if (shipNamePanels[i] != null) {
+                    shipNamePanels[i].getPosition().inTL(MARGIN, shipY + BOX_HEIGHT + 2f);
+                }
+                if (shipHpPanels[i] != null) {
+                    shipHpPanels[i].getPosition().inTL(MARGIN + 5f, shipY + BOX_HEIGHT + NAME_HEIGHT + 4f);
+                }
+                if (shipOddsPanels[i] != null) {
+                    shipOddsPanels[i].getPosition().inTL(MARGIN + 5f, shipY + BOX_HEIGHT + NAME_HEIGHT + HP_HEIGHT + 6f);
+                }
+                
+                // Update ship name if ship changed
+                boolean shipChanged = !shipStateInitialized || 
+                    (lastShipHullIds[i] == null || !lastShipHullIds[i].equals(ship.hullId));
+                
+                if (shipChanged && shipNameLabels[i] != null) {
+                    lastShipHullIds[i] = ship.hullId;
+                    String fullName = ship.prefix + " " + ship.hullName + " " + ship.affix;
+                    shipNameLabels[i].setText(fullName);
+                    applyShipNameHighlighting(shipNameLabels[i], ship);
+                }
+                
                 boolean hpChanged = !shipStateInitialized || 
                     lastShipHp[i] != ship.hp || 
                     lastShipMaxHp[i] != ship.maxHp ||
@@ -1286,6 +1328,20 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                     shipOddsLabels[i].setColor(ship.isDead ? Color.GRAY : Color.YELLOW);
                 }
             }
+            
+            // Hide labels for ships that no longer exist (e.g., fewer ships in new match)
+            for (int i = combatants.size(); i < 5; i++) {
+                if (shipNamePanels[i] != null) {
+                    shipNamePanels[i].getPosition().inTL(-1000f, -1000f);
+                }
+                if (shipHpPanels[i] != null) {
+                    shipHpPanels[i].getPosition().inTL(-1000f, -1000f);
+                }
+                if (shipOddsPanels[i] != null) {
+                    shipOddsPanels[i].getPosition().inTL(-1000f, -1000f);
+                }
+            }
+            
             shipStateInitialized = true;
         }
         
@@ -1467,8 +1523,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     }
     
     protected void renderBattleLogSprites(float panelX, float panelY, float panelW, float panelH, float alphaMult) {
-        if (battleLog == null || battleLog.isEmpty()) return;
-
         List<ParsedLogEntry> validEntries = getFilteredEntries();
 
         int maxLines = 12;
@@ -1487,8 +1541,8 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         float leftSpriteX = panelX + logPanelX + LOG_LEFT_MARGIN + LOG_SPRITE_SIZE / 2f;
         float rightSpriteX = panelX + logPanelX + logPanelW - LOG_LEFT_MARGIN - LOG_SPRITE_SIZE / 2f;
         
-        float textWidthTwoSprites = logPanelW - LOG_LEFT_MARGIN * 2 - LOG_SPRITE_SIZE * 2 - LOG_SPRITE_GAP * 2;
-        float textWidthOneSprite = logPanelW - LOG_LEFT_MARGIN * 2 - LOG_SPRITE_SIZE - LOG_SPRITE_GAP;
+        float textWidthTwoSprites = logPanelW - LOG_LEFT_MARGIN * 2 - LOG_SPRITE_SIZE * 2 - LOG_SPRITE_GAP * 2 - 30f;
+        float textWidthOneSprite = logPanelW - LOG_LEFT_MARGIN * 2 - LOG_SPRITE_SIZE - LOG_SPRITE_GAP - 30f;
         
         float textStartX_twoSprites = logPanelX + LOG_LEFT_MARGIN + LOG_SPRITE_SIZE + LOG_SPRITE_GAP;
         float textStartX_oneSprite = logPanelX + LOG_LEFT_MARGIN;
@@ -1870,6 +1924,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             lastShipDead[i] = false;
             lastShipOdds[i] = -1;
             lastShipBetCount[i] = -1;
+            lastShipHullIds[i] = null;
         }
         
         lastBattleLogSize = -1;
