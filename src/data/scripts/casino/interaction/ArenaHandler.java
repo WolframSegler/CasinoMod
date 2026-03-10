@@ -675,6 +675,12 @@ private ArenaDialogDelegate activeDialogDelegate = null;
             return;
         }
         
+        if (triggeredDelegate.getPendingNextGame()) {
+            currentDelegate = null;
+            startNewArenaMatch();
+            return;
+        }
+        
         if (triggeredDelegate.getPendingBetAmount() > 0 && triggeredDelegate.getPendingChampionIndex() >= 0) {
             currentDelegate = null;
             performAddBetToChampion(triggeredDelegate.getPendingChampionIndex(), triggeredDelegate.getPendingBetAmount());

@@ -283,7 +283,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected static final float BOX_WIDTH = 150f;
     protected static final float BOX_HEIGHT = 65f;
     protected static final float BOX_SPACING = 3f;
-    protected static final float ENTRY_SPACING = 25f;
+    protected static final float ENTRY_SPACING = 10f;
     
     protected static final float CHAMP_BUTTON_WIDTH = 100f;
     protected static final float CHAMP_BUTTON_HEIGHT = 25f;
@@ -398,6 +398,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected CustomPanelAPI instructionPanel;
     
     protected ButtonAPI watchNextButton;
+    protected ButtonAPI nextGameButton;
     protected ButtonAPI skipToEndButton;
     protected ButtonAPI addBetButton;
     protected ButtonAPI suspendButton;
@@ -407,6 +408,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected ButtonAPI cancelButton;
     
     protected CustomPanelAPI watchNextPanel;
+    protected CustomPanelAPI nextGamePanel;
     protected CustomPanelAPI skipToEndPanel;
     protected CustomPanelAPI addBetPanel;
     protected CustomPanelAPI suspendPanel;
@@ -481,6 +483,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         void onSuspend();
         void onLeave();
         void onReturnToLobby();
+        void onNextGame();
         void onEscape();
     }
     
@@ -732,6 +735,14 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         panel.addComponent(watchNextPanel).inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 4, bottomY);
         watchNextPanel.getPosition().inTL(-1000f, -1000f);
         
+        nextGamePanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
+        TooltipMakerAPI nextGameTooltip = nextGamePanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
+        nextGameButton = nextGameTooltip.addButton("Next Game", "arena_next_game", new Color(0, 0, 0), new Color(255, 200, 0), BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        nextGameButton.getPosition().inTL(0, 0);
+        nextGamePanel.addUIElement(nextGameTooltip).inTL(0, 0);
+        panel.addComponent(nextGamePanel).inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
+        nextGamePanel.getPosition().inTL(-1000f, -1000f);
+        
         startBattlePanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
         TooltipMakerAPI startTooltip = startBattlePanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
         startBattleButton = startTooltip.addButton("Start Battle", "arena_start_battle", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
@@ -844,12 +855,18 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         }
         
         if (watchNextPanel != null) {
-            if (battleEnded) {
-                watchNextPanel.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
-            } else if (currentRound > 0 && !showingBetAmounts) {
+            if (currentRound > 0 && !showingBetAmounts && !battleEnded) {
                 watchNextPanel.getPosition().inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 4, bottomY);
             } else {
                 watchNextPanel.getPosition().inTL(-1000f, -1000f);
+            }
+        }
+        
+        if (nextGamePanel != null) {
+            if (battleEnded) {
+                nextGamePanel.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
+            } else {
+                nextGamePanel.getPosition().inTL(-1000f, -1000f);
             }
         }
         
@@ -940,7 +957,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         float breakdownX = SHIP_COLUMN_WIDTH + MARGIN + CENTER_COLUMN_WIDTH - MARGIN;
         float breakdownY = MARGIN + 40f;
         float breakdownW = PANEL_WIDTH - breakdownX - MARGIN;
-        float lineHeight = 14f;
+        float lineHeight = 28f;
         float spacing = 2f;
         
         for (int i = 0; i < MAX_REWARD_LINES; i++) {
@@ -1046,8 +1063,12 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected void renderShipBoxes(float panelX, float panelY, float panelW, float panelH, float alphaMult) {
         if (combatants == null) return;
         
+        final float NAME_HEIGHT = 16f;
+        final float HP_HEIGHT = 11f;
+        final float ODDS_HEIGHT = 30f;
+        
         float startY = MARGIN + 10f;
-        float totalItemHeight = BOX_HEIGHT + BOX_SPACING + 16f + 11f + 13f + ENTRY_SPACING;
+        float totalItemHeight = BOX_HEIGHT + BOX_SPACING + NAME_HEIGHT + HP_HEIGHT + ODDS_HEIGHT + ENTRY_SPACING;
         
         for (int i = 0; i < combatants.size(); i++) {
             SpiralAbyssArena.SpiralGladiator ship = combatants.get(i);
@@ -1162,7 +1183,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             boolean hideInstruction = false;
             
             if (battleEnded) {
-                newInstructionText = "Click Next Round for a new match, or Leave to exit";
+                newInstructionText = "Click Next Game for a new match, or Leave to exit";
             } else if (currentRound > 0 && addingBetDuringBattle && selectedChampionIndex < 0) {
                 newInstructionText = "Select a champion to add bet on:";
             } else if (currentRound > 0 && addingBetDuringBattle && selectedChampionIndex >= 0) {
@@ -1478,14 +1499,14 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             float textX = textStartX_twoSprites;
 
             if (entry.type.equals("HIT")) {
-                labelText = entry.rawEntry;
+                labelText = shortenDamageText(entry.rawEntry);
                 labelColor = entry.isCrit ? new Color(255, 100, 100) : new Color(255, 255, 100);
                 
                 drawBattleLogSpriteWithDead(entry.attackerHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
                 drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
                 
             } else if (entry.type.equals("MISS")) {
-                labelText = entry.rawEntry;
+                labelText = shortenDamageText(entry.rawEntry);
                 labelColor = new Color(150, 150, 150);
                 
                 drawBattleLogSpriteWithDead(entry.targetHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
@@ -1496,7 +1517,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 if (killText.startsWith("[KILL] ")) {
                     killText = killText.substring(7);
                 }
-                labelText = killText;
+                labelText = shortenDamageText(killText);
                 labelColor = new Color(255, 50, 50);
                 
                 drawBattleLogSpriteWithDead(entry.attackerHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
@@ -1505,7 +1526,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             } else if (entry.type.equals("EVENT")) {
                 hasTwoSprites = false;
                 String eventText = entry.rawEntry;
-                labelText = eventText;
+                labelText = shortenDamageText(eventText);
                 labelColor = new Color(100, 200, 255);
                 textX = textStartX_oneSprite;
                 
@@ -1517,7 +1538,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 if (hitText.startsWith("[HIT] ")) {
                     hitText = hitText.substring(6);
                 }
-                labelText = hitText;
+                labelText = shortenDamageText(hitText);
                 labelColor = new Color(255, 200, 50);
                 textX = textStartX_oneSprite;
                 
@@ -1590,6 +1611,11 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             }
         }
         return false;
+    }
+    
+    protected String shortenDamageText(String text) {
+        if (text == null) return "";
+        return text.replace("CRIT damage", "CRIT dmg").replace("damage", "dmg");
     }
     
     public void render(float alphaMult) {
@@ -1692,6 +1718,14 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             watchNextButton.setChecked(false);
             if (actionCallback != null) {
                 actionCallback.onWatchNextRound();
+            }
+            return;
+        }
+        
+        if (nextGameButton != null && nextGameButton.isChecked()) {
+            nextGameButton.setChecked(false);
+            if (actionCallback != null) {
+                actionCallback.onNextGame();
             }
             return;
         }

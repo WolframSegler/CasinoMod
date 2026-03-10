@@ -35,6 +35,7 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate {
     
     protected boolean pendingLeave = false;
     protected boolean pendingReturnToLobby = false;
+    protected boolean pendingNextGame = false;
     protected boolean pendingWatchNext = false;
     protected boolean pendingSkipToEnd = false;
     protected boolean pendingSuspend = false;
@@ -148,6 +149,18 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate {
                     handler.startNewArenaMatchInPlace(ArenaDialogDelegate.this);
                 } else {
                     pendingReturnToLobby = true;
+                    if (callbacks != null) {
+                        callbacks.dismissDialog();
+                    }
+                }
+            }
+            
+            @Override
+            public void onNextGame() {
+                if (handler != null) {
+                    handler.startNewArenaMatchInPlace(ArenaDialogDelegate.this);
+                } else {
+                    pendingNextGame = true;
                     if (callbacks != null) {
                         callbacks.dismissDialog();
                     }
@@ -293,6 +306,10 @@ if (arenaPanel != null) {
         return pendingReturnToLobby;
     }
     
+    public boolean getPendingNextGame() {
+        return pendingNextGame;
+    }
+    
     public boolean getPendingWatchNext() {
         return pendingWatchNext;
     }
@@ -320,6 +337,7 @@ if (arenaPanel != null) {
     public void clearPendingActions() {
         pendingLeave = false;
         pendingReturnToLobby = false;
+        pendingNextGame = false;
         pendingWatchNext = false;
         pendingSkipToEnd = false;
         pendingSuspend = false;

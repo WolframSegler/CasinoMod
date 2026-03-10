@@ -1777,12 +1777,14 @@ public static class PokerState {
 
 
 
-state.playerBet = 0;
+        state.playerBet = 0;
         state.opponentBet = 0;
         state.pot = 0;
         state.folder = null;
         state.playerHasActed = false;
         state.opponentHasActed = false;
+        state.playerDeclaredAllIn = false;
+        state.opponentDeclaredAllIn = false;
 
         state.dealer = state.dealer == Dealer.PLAYER ? Dealer.OPPONENT : Dealer.PLAYER;
 
@@ -1906,6 +1908,11 @@ case RAISE:
                     totalBet = state.playerBet + raiseAmountActual;
                 }
                 
+                // Check if this is an all-in (player is betting their entire stack)
+                if (raiseAmountActual >= state.playerStack) {
+                    state.playerDeclaredAllIn = true;
+                }
+                
                 // Check if player is raising more than opponent can possibly match (side pot)
                 int playerContributionAfterRaise = totalBet;
                 int currentOpponentContribution = state.opponentBet;
@@ -1916,7 +1923,10 @@ case RAISE:
                     
                     // Player only risks what opponent can match
                     state.playerStack -= actualRaiseAmount;
-                    state.playerStack += excessToReturn; // Return excess immediately
+                    // Only return excess if player hasn't declared all-in (all-in means all chips committed)
+                    if (!state.playerDeclaredAllIn) {
+                        state.playerStack += excessToReturn;
+                    }
                     state.playerBet = maxOpponentCanMatch;
                     state.pot += actualRaiseAmount;
                 } else {
@@ -2030,7 +2040,10 @@ case RAISE:
 
                     // Opponent only risks what player can match
                     state.opponentStack -= actualRaiseAmount;
-                    state.opponentStack += excessToReturn; // Return excess immediately
+                    // Only return excess if opponent hasn't declared all-in (all-in means all chips committed)
+                    if (!state.opponentDeclaredAllIn) {
+                        state.opponentStack += excessToReturn;
+                    }
                     state.opponentBet = maxPlayerCanMatch;
                     state.pot += actualRaiseAmount;
                     // Track committed chips for EV calculation (only what opponent can match)
@@ -2080,8 +2093,14 @@ private void advanceRound() {
         state.opponentBet = 0;
         state.playerHasActed = false;
         state.opponentHasActed = false;
-        state.playerDeclaredAllIn = false;  // Reset all-in flags for new betting round
-        state.opponentDeclaredAllIn = false;
+        
+        // Only reset all-in flags if we're not running out cards due to all-in
+        // (i.e., only reset if both players still have chips and neither declared all-in)
+        if (state.playerStack > 0 && state.opponentStack > 0 && 
+            !state.playerDeclaredAllIn && !state.opponentDeclaredAllIn) {
+            state.playerDeclaredAllIn = false;
+            state.opponentDeclaredAllIn = false;
+        }
 
         // Reset AI's committed chips tracking when advancing to a new betting round
         ai.resetCommittedChips();
