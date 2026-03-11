@@ -19,7 +19,6 @@ public class GachaAnimationDialogDelegate implements CustomVisualDialogDelegate 
     protected GachaAnimation gachaAnimation;
     protected InteractionDialogAPI dialog;
     protected Map<String, MemoryAPI> memoryMap;
-    protected boolean tutorialMode = false;
     
     // Callback to trigger menu update after animation completes
     protected Runnable onDismissCallback;

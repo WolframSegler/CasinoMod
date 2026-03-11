@@ -10,8 +10,6 @@ import org.lwjgl.opengl.GL11;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin;
 import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
-import com.fs.starfarer.api.campaign.BaseCustomDialogDelegate;
-import com.fs.starfarer.api.campaign.CustomDialogDelegate.CustomDialogCallback;
 import com.fs.starfarer.api.campaign.InteractionDialogAPI;
 import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.ui.Alignment;
@@ -58,7 +56,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     // UI STATE
     // ============================================================================
     protected PokerGame game;
-    protected int selectedRaiseAmount = 0;
     protected boolean waitingForOpponent = false;
     protected float opponentThinkTimer = 0f;
     protected static final float OPPONENT_THINK_DELAY = 0.8f; // seconds before opponent acts
@@ -79,8 +76,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
         
         public static final float FLIP_DURATION = 0.4f;
         public static final float STAGGER_DELAY = 0.08f;
-        
-        public boolean isAnimating() { return phase == Phase.FLIPPING; }
+
         public boolean isRevealed() { return phase == Phase.REVEALED; }
         public boolean shouldShowBack() { 
             return phase == Phase.HIDDEN || (phase == Phase.FLIPPING && progress < 0.5f); 
@@ -269,12 +265,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     protected CustomPanelAPI howToPlayPanel;
     protected CustomPanelAPI foldPanel;
     protected CustomPanelAPI checkCallPanel;
-    
-    // Text labels for game info (pot, stacks, etc.) - created via TooltipMakerAPI
-    // These are actual UI components that render readable text, unlike the broken renderText()
-    protected LabelAPI potLabel;
-    protected CustomPanelAPI potDisplayPanel;
-    
+
     // Stack display labels
     protected LabelAPI playerStackLabel;
     protected LabelAPI opponentStackLabel;
@@ -351,7 +342,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     // ============================================================================
     protected static final Color COLOR_TABLE = new Color(20, 80, 40);       // Dark green felt
     protected static final Color COLOR_TABLE_BORDER = new Color(139, 90, 43); // Wood border
-    protected static final Color COLOR_POT = new Color(255, 215, 0);        // Gold
     protected static final Color COLOR_PLAYER = new Color(100, 200, 255);   // Cyan-blue
     protected static final Color COLOR_OPPONENT = new Color(255, 100, 100); // Red
     protected static final Color COLOR_CARD_BACK = new Color(30, 60, 120);  // Dark blue
@@ -374,7 +364,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
     protected static final Color COLOR_ROUND_TURN = new Color(200, 200, 100);
     protected static final Color COLOR_ROUND_RIVER = new Color(200, 150, 100);
     protected static final Color COLOR_ROUND_SHOWDOWN = new Color(255, 200, 50);
-    protected static final Color COLOR_WAITING = new Color(255, 200, 100);
     protected static final Color COLOR_CARD_SHADOW = new Color(0, 0, 0, 150);
     protected static final Color COLOR_RANK_ACE = new Color(255, 215, 0);
     protected static final Color COLOR_RANK_KING = new Color(200, 50, 50);
@@ -474,26 +463,21 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         if (buttonsCreated) {
             return;
         }
-        
-        float topRightX = PANEL_WIDTH - BUTTON_WIDTH - MARGIN;
-        float topRightY = MARGIN;
-        
+
         flipTablePanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
         TooltipMakerAPI flipTooltip = flipTablePanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
         flipTableButton = flipTooltip.addButton("Run Away", "poker_flip_table", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         flipTableButton.getPosition().inTL(0, 0);
         flipTablePanel.addUIElement(flipTooltip).inTL(0, 0);
         panel.addComponent(flipTablePanel).inTL(-1000, -1000);
-        
-        float suspendX = topRightX - BUTTON_WIDTH - BUTTON_SPACING;
+
         suspendPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
         TooltipMakerAPI suspendTooltip = suspendPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
         suspendButton = suspendTooltip.addButton("Wait...", "poker_suspend", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         suspendButton.getPosition().inTL(0, 0);
         suspendPanel.addUIElement(suspendTooltip).inTL(0, 0);
         panel.addComponent(suspendPanel).inTL(-1000, -1000);
-        
-        float helpX = suspendX - BUTTON_WIDTH - BUTTON_SPACING;
+
         howToPlayPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
         TooltipMakerAPI helpTooltip = howToPlayPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
         howToPlayButton = helpTooltip.addButton("How to Play", "poker_how_to_play", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
@@ -512,9 +496,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         createCardRankLabels();
         createResultLabel();
         createNextHandButton();
-        
-        float bottomY = PANEL_HEIGHT - BUTTON_HEIGHT - MARGIN;
-        
+
         foldPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
         TooltipMakerAPI foldTooltip = foldPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
         foldButton = foldTooltip.addButton("Fold", "poker_fold", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
@@ -846,12 +828,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
     protected void updatePotDisplay(int pot, int bigBlind) {
         // Pot is now shown in the round label instead
     }
-    
-    protected void updatePotAndBetsDisplay(int pot, int playerBet, int opponentBet) {
-        // Pot is now shown in the round label instead
-        // Bet info is now in stack displays
-    }
-    
+
     /**
      * Creates stack display labels using LabelAPI.
      * Layout: Opponent at top (Y=70), Player at bottom (Y=580)
@@ -907,16 +884,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             opponentStackLabel.setText(lastOpponentStackText);
         }
     }
-    
-    protected void createBetLabels() {
-        // Bet info is now integrated into stack displays
-    }
-    
-    protected void updateBetLabels(int playerBet, int opponentBet) {
-        // Bet info is now integrated into stack displays
-        // Called from external code for compatibility
-    }
-    
+
     /**
      * Creates round indicator label - positioned at center-top above table.
      * Displays: "Round Progress: Flop | Current Pot: 200 | Big Blind (minimal bet): 50"
@@ -1137,16 +1105,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             returnMessagePanel.getPosition().setYAlignOffset(0);
         }
     }
-    
-    /**
-     * Hides the return message.
-     */
-    public void hideReturnMessage() {
-        if (returnMessagePanel != null) {
-            returnMessagePanel.getPosition().setYAlignOffset(-1000);
-        }
-    }
-    
+
     /**
      * Creates card rank labels for displaying actual text on cards.
      * These are positioned at card locations when cards are rendered.
@@ -1203,7 +1162,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
      * OpenGL coordinate system: Y=0 at BOTTOM, Y increases UP.
      * Player cards at visual BOTTOM (LOW Y), Opponent cards at visual TOP (HIGH Y).
      */
-    protected void updateCardRankLabels(float panelWidth, float panelHeight, float panelX, float panelY) {
+    protected void updateCardRankLabels(float panelWidth, float panelHeight) {
         PokerGame.PokerState state = game.getState();
         
         int playerHandSize = state.playerHand != null ? state.playerHand.size() : 0;
@@ -1335,19 +1294,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             }
         }
     }
-    
-    /**
-     * Gets a suit symbol for display.
-     */
-    protected String getSuitSymbol(PokerGame.PokerGameLogic.Suit suit) {
-        return switch (suit) {
-            case SPADES -> "♠";
-            case HEARTS -> "♥";
-            case DIAMONDS -> "♦";
-            case CLUBS -> "♣";
-        };
-    }
-    
+
     /**
      * Creates the result display labels for showdown - showing hand details.
      * Layout: [Player Hand] / [Opponent Hand] on first lines
@@ -1540,20 +1487,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             default: return String.valueOf(rankValue);
         }
     }
-    
-    /**
-     * Formats a list of cards into a short string.
-     */
-    protected String formatCards(List<PokerGame.PokerGameLogic.Card> cards) {
-        if (cards == null || cards.isEmpty()) return "";
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < cards.size(); i++) {
-            if (i > 0) sb.append(" ");
-            sb.append(cards.get(i).rank.symbol);
-        }
-        return sb.toString();
-    }
-    
+
     /**
      * Creates the "Next Hand" button for after showdown - below community cards, right of result label.
      * Layout: [Result Text] [Next Hand Button] - horizontally arranged below community cards.
@@ -1667,7 +1601,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         // ----------------------------------------------------------------------
         // 3c. Update card rank labels (actual text on cards)
         // ----------------------------------------------------------------------
-        updateCardRankLabels(w, h, x, y);
+        updateCardRankLabels(w, h);
         
         // ----------------------------------------------------------------------
         // 3d. Update result label and next hand button for showdown
@@ -1925,97 +1859,7 @@ protected void renderCommunityCards(float cx, float cy,
         
         GL11.glPopMatrix();
     }
-    
-    /**
-     * Renders a single card at the specified position.
-     * @param faceUp If true, shows card face; otherwise shows card back.
-     */
-    protected void renderCard(float x, float y, PokerGame.PokerGameLogic.Card card, 
-            boolean faceUp, float alphaMult) {
-        Misc.renderQuad(x + 3, y - 3, CARD_WIDTH, CARD_HEIGHT, 
-            COLOR_CARD_SHADOW, alphaMult * 0.6f);
-        
-        if (faceUp && card != null) {
-            Misc.renderQuad(x, y, CARD_WIDTH, CARD_HEIGHT, COLOR_CARD_FRONT, alphaMult);
-            
-            GL11.glDisable(GL11.GL_TEXTURE_2D);
-            GL11.glLineWidth(2f);
-            GL11.glColor4f(0.2f, 0.2f, 0.2f, alphaMult);
-            GL11.glBegin(GL11.GL_LINE_LOOP);
-            GL11.glVertex2f(x, y);
-            GL11.glVertex2f(x + CARD_WIDTH, y);
-            GL11.glVertex2f(x + CARD_WIDTH, y + CARD_HEIGHT);
-            GL11.glVertex2f(x, y + CARD_HEIGHT);
-            GL11.glEnd();
-            GL11.glLineWidth(1f);
-            
-            float centerX = x + CARD_WIDTH / 2f;
-            float centerY = y + CARD_HEIGHT / 2f;
-            float symbolSize = 20f;
-            
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            
-            float[] suitColor;
-            switch (card.suit) {
-                case DIAMONDS:
-                    suitColor = GL_COLOR_DIAMONDS;
-                    break;
-                case HEARTS:
-                    suitColor = GL_COLOR_HEARTS;
-                    break;
-                case SPADES:
-                    suitColor = GL_COLOR_SPADES;
-                    break;
-                case CLUBS:
-                default:
-                    suitColor = GL_COLOR_CLUBS;
-                    break;
-            }
-            GL11.glColor4f(suitColor[0], suitColor[1], suitColor[2], alphaMult);
-            
-            switch (card.suit) {
-                case DIAMONDS:
-                    renderDiamond(centerX, centerY, symbolSize);
-                    break;
-                case HEARTS:
-                    renderHeart(centerX, centerY, symbolSize);
-                    break;
-                case SPADES:
-                    renderSpade(centerX, centerY, symbolSize);
-                    break;
-                case CLUBS:
-                default:
-                    renderClub(centerX, centerY, symbolSize);
-                    break;
-            }
-            
-            GL11.glColor4f(1f, 1f, 1f, 1f);
-            
-        } else {
-            Misc.renderQuad(x, y, CARD_WIDTH, CARD_HEIGHT, COLOR_CARD_BACK, alphaMult);
-            
-            GL11.glDisable(GL11.GL_TEXTURE_2D);
-            GL11.glColor4f(GL_COLOR_CARD_BACK[0] + 0.1f, GL_COLOR_CARD_BACK[1] + 0.1f, GL_COLOR_CARD_BACK[2] + 0.2f, alphaMult);
-            
-            GL11.glBegin(GL11.GL_LINE_LOOP);
-            GL11.glVertex2f(x + 4, y + 4);
-            GL11.glVertex2f(x + CARD_WIDTH - 4, y + 4);
-            GL11.glVertex2f(x + CARD_WIDTH - 4, y + CARD_HEIGHT - 4);
-            GL11.glVertex2f(x + 4, y + CARD_HEIGHT - 4);
-            GL11.glEnd();
-            
-            GL11.glBegin(GL11.GL_LINES);
-            GL11.glVertex2f(x + 10, y + 10);
-            GL11.glVertex2f(x + CARD_WIDTH - 10, y + CARD_HEIGHT - 10);
-            GL11.glVertex2f(x + CARD_WIDTH - 10, y + 10);
-            GL11.glVertex2f(x + 10, y + CARD_HEIGHT - 10);
-            GL11.glEnd();
-            
-            GL11.glColor4f(1f, 1f, 1f, 1f);
-        }
-    }
-    
+
     /**
      * Renders a diamond suit shape - simple 4-point diamond.
      */
@@ -2093,31 +1937,7 @@ protected void renderCommunityCards(float cx, float cy,
         GL11.glVertex2f(cx - size * 0.2f, cy - size * 0.9f);
         GL11.glEnd();
     }
-    
-    /**
-     * Draws a filled semicircle.
-     * @param cx Center X
-     * @param cy Center Y
-     * @param radius Radius
-     * @param segments Number of segments
-     * @param leftHalf If true, draws left half; otherwise draws right half
-     */
-    protected void drawSemiCircle(float cx, float cy, float radius, int segments, boolean leftHalf) {
-        GL11.glBegin(GL11.GL_POLYGON);
-        GL11.glVertex2f(cx, cy);
-        int startAngle = leftHalf ? (segments / 2) : 0;
-        int endAngle = leftHalf ? segments : (segments / 2);
-        for (int i = startAngle; i <= endAngle; i++) {
-            float angle = (float) (Math.PI * i / segments);
-            if (leftHalf) {
-                angle += (float) Math.PI;
-            }
-            GL11.glVertex2f(cx + (float) Math.cos(angle) * radius, 
-                           cy + (float) Math.sin(angle) * radius);
-        }
-        GL11.glEnd();
-    }
-    
+
     /**
      * Draws a TOP semicircle (bulging upward).
      * Angle range: 0 to PI (0° to 180°), where sin > 0 for upward.
@@ -2323,19 +2143,7 @@ protected void renderCommunityCards(float cx, float cy,
             case TWO -> "2";
         };
     }
-    
-    /**
-     * Gets the display character for a suit.
-     */
-    protected String getSuitString(PokerGame.PokerGameLogic.Suit suit) {
-        return switch (suit) {
-            case SPADES -> "S";
-            case HEARTS -> "H";
-            case DIAMONDS -> "D";
-            case CLUBS -> "C";
-        };
-    }
-    
+
     // ============================================================================
     // GAME STATE UPDATE
     // ============================================================================
@@ -2570,7 +2378,6 @@ public void updateGameState(PokerGame game) {
         if (nextHandButton != null && nextHandButton.isChecked()) {
             nextHandButton.setChecked(false);
             handleNextHandClick();
-            return;
         }
     }
     

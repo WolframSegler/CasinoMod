@@ -2,7 +2,6 @@ package data.scripts.casino;
 
 import java.util.Map;
 
-import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.CustomUIPanelPlugin;
 import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate;
 import com.fs.starfarer.api.campaign.InteractionDialogAPI;
@@ -13,18 +12,18 @@ import data.scripts.casino.interaction.PokerHandler;
 
 /**
  * Dialog delegate for the Poker UI Panel.
- * 
+ * <p>
  * ARCHITECTURE NOTES:
  * - Implements CustomVisualDialogDelegate (base game interface)
  * - Wraps PokerPanelUI for integration with the interaction dialog system
  * - Follows the same pattern as DuelDialogDelegate and GachaAnimationDialogDelegate
- * 
+ * <p>
  * LIFECYCLE:
  * 1. Dialog is shown via dialog.showCustomDialog()
  * 2. init() is called with the panel - we initialize PokerPanelUI here
  * 3. advance() is called every frame - we check for game completion
  * 4. reportDismissed() is called when dialog closes - cleanup and callbacks
- * 
+ * <p>
  * COMMUNICATION FLOW:
  * PokerHandler -> PokerDialogDelegate -> PokerPanelUI
  *                    ↑                       ↓
@@ -61,14 +60,11 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     
     /**
      * Creates a new PokerDialogDelegate.
-     * 
      * CRITICAL: The PokerPanelUI must be created HERE, not in init()!
      * The framework calls getCustomPanelPlugin() BEFORE init(), so if we
      * create the panel in init(), getCustomPanelPlugin() would return null.
-     * 
      * This matches GachaAnimationDialogDelegate which receives the animation
      * as a constructor parameter (already created before delegate).
-     * 
      * @param game The poker game instance (shared with PokerHandler)
      * @param dialog The interaction dialog
      * @param memoryMap Memory map for event firing
@@ -81,10 +77,10 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     
     /**
      * Creates a new PokerDialogDelegate with handler reference for in-place updates.
-     * 
+     * <p>
      * This constructor is preferred for smooth gameplay - actions are processed
      * in-place without dismissing the dialog, avoiding visual flash.
-     * 
+     * <p>
      * @param game The poker game instance (shared with PokerHandler)
      * @param dialog The interaction dialog
      * @param memoryMap Memory map for event firing
@@ -150,12 +146,10 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     
     /**
      * Called by the dialog system when the panel is created.
-     * 
      * INITIALIZATION SEQUENCE:
      * 1. Store callbacks reference
      * 2. Set fade duration for smooth exit
      * 3. Initialize the pokerPanel (created in constructor)
-     * 
      * @param panel The custom panel created by the dialog system
      * @param callbacks Callbacks for controlling the dialog
      */
@@ -197,11 +191,11 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     
     /**
      * Called every frame by the dialog system.
-     * 
+     * <p>
      * RESPONSIBILITIES:
      * 1. Track game state for display purposes
      * 2. Do NOT auto-close even when bust - let player see result and click Leave
-     * 
+     * <p>
      * @param amount Frame time in seconds
      */
     public void advance(float amount) {
@@ -223,7 +217,6 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     
     /**
      * Called when the dialog is dismissed (either by user or programmatically).
-     * 
      * CLEANUP RESPONSIBILITIES:
      * 1. Fire completion event for rules system
      * 2. Call dismiss callback for PokerHandler cleanup
@@ -284,7 +277,6 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     /**
      * Handles player action from the panel UI.
      * This bridges the UI action to the game logic.
-     * 
      * IN-PLACE PROCESSING: If handler is available, processes action directly
      * without dismissing the dialog, avoiding visual flash.
      */
@@ -333,21 +325,7 @@ public class PokerDialogDelegate implements CustomVisualDialogDelegate {
     public void setLastPlayerAction(String action) {
         this.lastPlayerAction = action;
     }
-    
-    /**
-     * Sets the return from suspend message to display.
-     */
-    public void setReturnMessage(String message) {
-        this.returnMessage = message;
-    }
-    
-    /**
-     * Gets the last opponent action text.
-     */
-    public String getLastOpponentAction() {
-        return lastOpponentAction;
-    }
-    
+
     /**
      * Gets the pending action that was triggered by the player.
      * Called by PokerHandler after dialog dismissal.

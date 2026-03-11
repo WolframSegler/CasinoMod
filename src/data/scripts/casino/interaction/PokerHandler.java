@@ -646,7 +646,7 @@ private void startNextHand() {
              if (response.action == PokerGame.SimplePokerAI.Action.FOLD) {
                  // Only track if player has bet (not when checking through)
                  if (state.playerBet > state.opponentBet) {
-                     pokerGame.getAI().trackAIFoldedToPlayerBet(state.pot);
+                     pokerGame.getAI().trackAIFoldedToPlayerBet();
                  }
              }
              

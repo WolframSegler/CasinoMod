@@ -22,9 +22,7 @@ import java.util.Random;
 
 /**
  * Manages debt collector (bounty hunter) spawning for casino debt.
- * 
  * Based on TriTachLoanIncentiveScript - follows base game patterns for bounty hunter spawning.
- * 
  * Key behaviors:
  * - Collectors spawn when debt exceeds threshold (configurable, default -10000)
  * - Spawn has a 1-month cooldown between attempts
@@ -91,7 +89,7 @@ public class CasinoDebtScript implements EveryFrameScript {
         updateSystemTracking(playerFleet, days);
 
         // Update collector state machine
-        updateCollectorState(days, playerFleet);
+        updateCollectorState();
     }
     
     /**
@@ -136,7 +134,7 @@ public class CasinoDebtScript implements EveryFrameScript {
     /**
      * Main state machine for debt collector management
      */
-    private void updateCollectorState(float days, CampaignFleetAPI playerFleet) {
+    private void updateCollectorState() {
         String state = getCollectorState();
         int currentBalance = CasinoVIPManager.getBalance();
         int ceiling = CasinoVIPManager.getCreditCeiling();
@@ -387,7 +385,7 @@ public class CasinoDebtScript implements EveryFrameScript {
         }
         
         Long lastSpawnTimestamp = memory.getLong(MEM_LAST_SPAWN_TIMESTAMP);
-        if (lastSpawnTimestamp == null || lastSpawnTimestamp == 0) {
+        if (lastSpawnTimestamp == 0) {
             return true;
         }
         
@@ -574,7 +572,6 @@ public class CasinoDebtScript implements EveryFrameScript {
      * Initialize the debt collector system for a new player or save.
      * Sets default values for all memory keys if not already present.
      * Called from CasinoModPlugin.onGameLoad().
-     * 
      * This ensures proper handling when loading the mod onto an existing game
      * where the player may already have debt exceeding the threshold.
      */

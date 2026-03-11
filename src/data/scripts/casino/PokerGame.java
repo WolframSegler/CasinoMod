@@ -108,10 +108,7 @@ public static class PokerState {
             HandRank(int v) { value = v; }
         }
     
-        public static class Card {
-            public final Rank rank;
-            public final Suit suit;
-            public Card(Rank r, Suit s) { rank = r; suit = s; }
+        public record Card(Rank rank, Suit suit) {
             @Override public String toString() {
                 String s = switch(suit) {
                     case SPADES -> "Spades";
@@ -504,7 +501,7 @@ public static class PokerState {
         }
         
         public AIResponse decideAllInResponse(List<PokerGameLogic.Card> holeCards, List<PokerGameLogic.Card> communityCards,
-                                int currentBetToCall, int potSize, int stackSize) {
+                                int currentBetToCall, int potSize) {
             // Player is all-in - AI can only call or fold, no raising allowed
             float equity = communityCards.isEmpty() ? 
                 calculatePreflopEquity(holeCards) : 
@@ -1113,7 +1110,7 @@ public static class PokerState {
             // Strong: AQs-AJs, KQs, AQo
             if ((v1 == 14 && v2 >= 11 && suited) ||
                 (v1 == 13 && v2 == 12 && suited) ||
-                (v1 == 14 && v2 == 12 && !suited)) return HandCategory.STRONG;
+                (v1 == 14 && v2 == 12)) return HandCategory.STRONG;
 
             // Playable suited: Ax(s), KJ(s)+, QJs, JTs, T9s+
             if (suited && ((v1 == 14) || (v1 == 13 && v2 >= 10) ||
@@ -1421,7 +1418,7 @@ public static class PokerState {
         }
         
         // Anti-gullibility: track when AI folds to player bet
-        public void trackAIFoldedToPlayerBet(int potSize) {
+        public void trackAIFoldedToPlayerBet() {
             playerBetsWithoutShowdown++;
             consecutiveBluffsCaught++;
             handsSinceLastShowdown++;
@@ -1981,7 +1978,7 @@ boolean isRaise = action == Action.RAISE || action == Action.ALL_IN;
         int currentBetToCall = state.playerBet - state.opponentBet;
         // If player is all-in (declared all-in OR no chips left), AI can only call or fold, not raise
         if (state.playerDeclaredAllIn || state.playerStack <= 0) {
-            return ai.decideAllInResponse(state.opponentHand, state.communityCards, currentBetToCall, state.pot, state.opponentStack);
+            return ai.decideAllInResponse(state.opponentHand, state.communityCards, currentBetToCall, state.pot);
         }
         return ai.decide(state.opponentHand, state.communityCards, currentBetToCall, state.pot, state.opponentStack);
     }
@@ -2094,13 +2091,8 @@ private void advanceRound() {
         state.playerHasActed = false;
         state.opponentHasActed = false;
         
-        // Only reset all-in flags if we're not running out cards due to all-in
-        // (i.e., only reset if both players still have chips and neither declared all-in)
-        if (state.playerStack > 0 && state.opponentStack > 0 && 
-            !state.playerDeclaredAllIn && !state.opponentDeclaredAllIn) {
-            state.playerDeclaredAllIn = false;
-            state.opponentDeclaredAllIn = false;
-        }
+        // Note: All-in flags are already false when both players have chips
+        // and neither declared all-in, so no reset needed
 
         // Reset AI's committed chips tracking when advancing to a new betting round
         ai.resetCommittedChips();

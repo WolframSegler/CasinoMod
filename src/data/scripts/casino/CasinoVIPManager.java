@@ -13,7 +13,6 @@ import java.util.Random;
 /**
  * Core manager for VIP status, Stargem balance, credit facilities, and daily rewards.
  * Implements EveryFrameScript to run continuously in the background.
- * 
  * RESPONSIBILITIES:
  * 1. Stargem balance management (get/add to balance)
  * 2. VIP subscription tracking (days remaining, start time)
@@ -21,7 +20,6 @@ import java.util.Random;
  * 4. Daily reward distribution (VIP daily gems)
  * 5. Interest application (on negative balances)
  * 6. Notification management (daily/monthly modes)
- * 
  * MEMORY KEYS (all prefixed with "$ipc_"):
  * - $ipc_stargems: Current Stargem balance (can be negative)
  * - $ipc_vip_start_time: Timestamp when VIP pass started (for calculating remaining days)
@@ -32,31 +30,23 @@ import java.util.Random;
  * - $ipc_vip_last_processed_day: Timestamp of last daily processing
  * - $ipc_vip_monthly_notify_mode: Boolean for notification frequency
  * - $ipc_vip_last_monthly_notify: Timestamp of last monthly notification
- * 
  * CRITICAL IMPLEMENTATION NOTES:
- * 
  * AI_AGENT_NOTE: NEVER use clock.getDay() for daily reward tracking!
  * The getDay() method returns day-of-month (1-31), which causes bugs when crossing
  * month boundaries (e.g., Jan 31 to Feb 1 appears as day change from 31 to 1).
  * Always use clock.getTimestamp() which provides continuous time values.
- * 
  * AI_AGENT_NOTE: Credit ceiling formula
  * ceiling = BASE_DEBT_CEILING + (vipPurchases * VIP_PASS_CEILING_INCREASE) + (topupAmount * TOPUP_CEILING_MULTIPLIER)
  * Available credit = ceiling + balance (balance can be negative)
- * 
  * AI_AGENT_NOTE: Interest is applied daily to negative balances
  * VIP rate: 2% daily (CasinoConfig.VIP_DAILY_INTEREST_RATE)
  * Non-VIP rate: 5% daily (CasinoConfig.NORMAL_DAILY_INTEREST_RATE)
  * Interest is subtracted from balance (makes negative balance more negative)
- * 
  * AI_AGENT_NOTE: Overdraft is VIP-only feature
  * Always check isOverdraftAvailable() before allowing negative balance transactions
  * Non-VIP players should see VIP promotion instead of overdraft option
  */
 public class CasinoVIPManager implements EveryFrameScript {
-
-    /** Key for storing VIP data structure in player memory */
-    private static final String DATA_KEY = "CasinoVIPData";
 
     /** Memory key for timestamp of last daily reward (used for 24-hour cooldown) */
     private static final String LAST_REWARD_TIME_KEY = "$ipc_vip_last_reward_time";
@@ -94,7 +84,6 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Main update loop called every frame.
      * Throttled to run daily logic once per in-game day.
-     * 
      * AI_AGENT_NOTE: The 1-second throttle is for performance.
      * The actual daily check uses clock.getElapsedDaysSince() for accuracy.
      */
@@ -112,7 +101,7 @@ public class CasinoVIPManager implements EveryFrameScript {
         }
         
         Long lastProcessedDay = memory.getLong(LAST_PROCESSED_DAY_KEY);
-        if (lastProcessedDay == null || lastProcessedDay == 0) {
+        if (lastProcessedDay == 0) {
             memory.set(LAST_PROCESSED_DAY_KEY, Long.valueOf(clock.getTimestamp()));
             return;
         }
@@ -129,7 +118,6 @@ public class CasinoVIPManager implements EveryFrameScript {
      * Debt interest applies to all players with negative balance, regardless of VIP status.
      * VIP players get daily gems + interest notification.
      * Non-VIP players with negative balance get warning + interest notification.
-     * 
      * AI_AGENT_NOTE: Uses getElapsedDaysSince() to check if at least 1 day has passed.
      * This is the correct way to measure game days in Starsector.
      * Never use raw timestamp arithmetic - timestamps are internal time values, not seconds.
@@ -187,10 +175,10 @@ public class CasinoVIPManager implements EveryFrameScript {
                 addToBalance(CasinoConfig.VIP_DAILY_REWARD);
                 
                 if (shouldShowNotification()) {
-                    sendVIPNotification(interestAmount, currentBalance);
+                    sendVIPNotification(interestAmount);
                 }
             } else if (hasDebt) {
-                sendDebtWarningNotification(interestAmount, currentBalance);
+                sendDebtWarningNotification(interestAmount);
                 
                 checkMonthlyDebtWarning();
             }
@@ -205,7 +193,7 @@ public class CasinoVIPManager implements EveryFrameScript {
      * Respects notification preference (daily/monthly).
      */
     private void checkMonthlyDebtWarning() {
-        if (!shouldShowDebtNotification()) {
+        if (shouldSuppressDebtNotification()) {
             return;
         }
         
@@ -254,7 +242,6 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Checks if VIP notification should be shown based on user preference.
      * Returns true for daily mode, or once per month for monthly mode.
-     * 
      * AI_AGENT NOTE: Monthly mode uses 30-day intervals, not calendar months.
      * This ensures consistent timing regardless of month length.
      */
@@ -266,8 +253,8 @@ public class CasinoVIPManager implements EveryFrameScript {
      * Public method for debt-related notifications to check preference.
      * Uses the same daily/monthly preference as VIP notifications.
      */
-    public static boolean shouldShowDebtNotification() {
-        return shouldShowNotificationInternal();
+    public static boolean shouldSuppressDebtNotification() {
+        return !shouldShowNotificationInternal();
     }
     
     /**
@@ -288,7 +275,7 @@ public class CasinoVIPManager implements EveryFrameScript {
         }
         
         Long lastMonthlyNotify = memory.getLong(LAST_MONTHLY_NOTIFY_KEY);
-        if (lastMonthlyNotify == null || lastMonthlyNotify == 0) {
+        if (lastMonthlyNotify == 0) {
             memory.set(LAST_MONTHLY_NOTIFY_KEY, Long.valueOf(clock.getTimestamp()));
             return true;
         }
@@ -305,11 +292,10 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Sends VIP daily reward notification combined with debt interest info.
      * Format: +100 daily gem, -X interest | Balance: Y (VIP: Z days) | [Tachy-Impact VIP] ad
-     * 
      * AI_AGENT NOTE: Daily gem and interest are combined on one line.
      * Balance includes VIP days remaining on the same line.
      */
-    private void sendVIPNotification(int interestAmount, int oldBalance) {
+    private void sendVIPNotification(int interestAmount) {
         int newBalance = getBalance();
         int daysRemaining = getDaysRemaining();
         
@@ -340,8 +326,8 @@ public class CasinoVIPManager implements EveryFrameScript {
      * Format: -X interest (red) | Balance: Y (red) | Warning
      * Respects notification preference (daily/monthly).
      */
-    private void sendDebtWarningNotification(int interestAmount, int oldBalance) {
-        if (!shouldShowDebtNotification()) {
+    private void sendDebtWarningNotification(int interestAmount) {
+        if (shouldSuppressDebtNotification()) {
             return;
         }
         
@@ -412,10 +398,8 @@ public class CasinoVIPManager implements EveryFrameScript {
      * Add to player's Stargem balance.
      * Positive amount = add gems, Negative amount = spend gems.
      * Can result in negative balance (overdraft) if within credit ceiling.
-     * 
      * AI_AGENT_NOTE: This is the ONLY method that should modify $ipc_stargems.
      * Never modify the memory key directly - always use this method.
-     * 
      * @param amount Amount to add (positive) or subtract (negative)
      */
     public static void addToBalance(int amount) {
@@ -476,7 +460,7 @@ public class CasinoVIPManager implements EveryFrameScript {
         
         Long startTime = memory.getLong("$ipc_vip_start_time");
         
-        if (startTime == null || startTime == 0) {
+        if (startTime == 0) {
             return 0;
         }
         
@@ -490,10 +474,8 @@ public class CasinoVIPManager implements EveryFrameScript {
      * Add subscription days to VIP status.
      * If no active VIP, starts new subscription from current time.
      * If active VIP, extends current subscription.
-     * 
      * AI_AGENT NOTE: Triggers immediate daily reward on purchase by calling checkDaily() directly.
      * This ensures the player gets their first reward immediately rather than waiting for next day.
-     * 
      * @param days Number of days to add
      */
     public static void addSubscriptionDays(int days) {
@@ -556,7 +538,7 @@ public class CasinoVIPManager implements EveryFrameScript {
             }
             
             CampaignClockAPI clock = Global.getSector().getClock();
-            sendVIPNotificationImmediate(interestAmount, currentBalance);
+            sendVIPNotificationImmediate(interestAmount);
             
             Global.getSector().getPlayerMemoryWithoutUpdate().set(LAST_REWARD_TIME_KEY, Long.valueOf(clock.getTimestamp()));
         }
@@ -565,7 +547,7 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Sends VIP notification for immediate reward (simplified version).
      */
-    private static void sendVIPNotificationImmediate(int interestAmount, int oldBalance) {
+    private static void sendVIPNotificationImmediate(int interestAmount) {
         int newBalance = getBalance();
         int daysRemaining = getDaysRemaining();
         
@@ -585,10 +567,8 @@ public class CasinoVIPManager implements EveryFrameScript {
 
     /**
      * Calculate credit ceiling based on player level, VIP purchases, and topup amount.
-     * 
      * Formula: BASE_DEBT_CEILING + (vipPurchases * CEILING_INCREASE_PER_VIP) + (playerLevel * OVERDRAFT_CEILING_LEVEL_MULTIPLIER)
      * Example: Level 10 player with 2 VIP purchases = 5000 + (2 * 10000) + (10 * 1000) = 35,000 Stargems ceiling
-     * 
      * @return Maximum credit limit in Stargems
      */
     public static int getCreditCeiling() {
@@ -603,9 +583,7 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Get maximum allowed debt (debt ceiling).
      * Debt cannot grow beyond this amount due to interest.
-     * 
      * Formula: creditCeiling * MAX_DEBT_MULTIPLIER (default 2x)
-     * 
      * @return Maximum debt allowed in Stargems
      */
     public static int getMaxDebt() {
@@ -615,11 +593,9 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Get available credit for spending.
      * This is how much more the player can spend before hitting the ceiling.
-     * 
      * AI_AGENT NOTE: Formula is ceiling + balance (balance can be negative).
      * Example: ceiling=5000, balance=-2000 -> available=3000
      * Example: ceiling=5000, balance=1000 -> available=6000
-     * 
      * @return Available credit in Stargems
      */
     public static int getAvailableCredit() {
@@ -634,7 +610,6 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Initialize the casino system for a new player or save.
      * Sets default values for all memory keys if not already present.
-     * 
      * AI_AGENT NOTE: This is safe to call multiple times - it only sets
      * values if the keys don't already exist (uses contains() check).
      */
@@ -732,10 +707,8 @@ public class CasinoVIPManager implements EveryFrameScript {
     /**
      * Selects a VIP ad that hasn't been shown in the last 4 messages.
      * Uses player memory to track recent ad history.
-     *
      * AI_AGENT NOTE: This prevents the same ad from appearing twice within 4 messages.
      * If all ads are in history (when total ads <= 4), history is cleared.
-     *
      * @return Selected ad message string
      */
     private String selectNonDuplicateAd() {
