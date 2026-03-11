@@ -1,10 +1,7 @@
 package data.scripts.casino;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
@@ -68,7 +65,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             } else if (rawEntry.contains(" damage") || rawEntry.contains(" for ")) {
                 type = "HIT";
                 parseAttackLine(rawEntry, combatants);
-            } else if (rawEntry.contains("missed") || rawEntry.contains("Evaded")) {
+            } else if (rawEntry.contains("miss") || rawEntry.contains("dodges") || rawEntry.contains("Evaded") || rawEntry.contains("shot goes wide")) {
                 type = "MISS";
                 parseMissLine(rawEntry, combatants);
             } else if (rawEntry.contains("--- SHIP STATUS ---") || rawEntry.contains("HP:")) {
@@ -267,19 +264,12 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     
     protected boolean buttonsCreated = false;
     
-    protected boolean lastShowingBetAmounts = false;
-    protected boolean lastAddingBetDuringBattle = false;
-    protected int lastSelectedChampionIndex = -2;
-    protected boolean lastBattleEnded = true;
-    protected int lastCurrentRoundForButtons = -1;
-    
     protected static final float PANEL_WIDTH = 1000f;
     protected static final float PANEL_HEIGHT = 700f;
     
     protected static final float SHIP_COLUMN_WIDTH = 300f;
     protected static final float CENTER_COLUMN_WIDTH = 450f;
-    protected static final float BATTLE_LOG_WIDTH = 280f;
-    
+
     protected static final float BOX_WIDTH = 150f;
     protected static final float BOX_HEIGHT = 65f;
     protected static final float BOX_SPACING = 3f;
@@ -300,6 +290,8 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected static final Color COLOR_HEALTHY = new Color(50, 200, 50);
     protected static final Color COLOR_DAMAGED = new Color(200, 150, 50);
     protected static final Color COLOR_DESTROYED = new Color(100, 30, 30);
+    protected static final Color COLOR_BOX_BG = new Color(40, 40, 50);
+    protected static final Color COLOR_BOX_BORDER = new Color(80, 80, 100);
     protected static final Color COLOR_SELECTED = new Color(255, 215, 0);
     
     protected static final Color PREFIX_POSITIVE_COLOR = new Color(50, 255, 50);
@@ -309,9 +301,8 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     
     protected static final Color COLOR_BG_DARK = new Color(15, 15, 20);
     protected static final Color COLOR_SIDEBAR = new Color(25, 25, 35);
-    protected static final Color COLOR_TINT_DEAD = new Color(100, 30, 30);
+    protected static final Color COLOR_TINT_DEAD = new Color(150, 50, 50);
     protected static final Color COLOR_TINT_DAMAGED = new Color(255, 200, 100);
-    protected static final Color COLOR_HP_BAR_BG = new Color(30, 30, 30);
     
     protected boolean isPrefixPositive(String prefix) {
         if (prefix == null) return true;
@@ -405,8 +396,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected ButtonAPI leaveButton;
     protected ButtonAPI returnToLobbyButton;
     protected ButtonAPI startBattleButton;
-    protected ButtonAPI cancelButton;
-    
+
     protected CustomPanelAPI watchNextPanel;
     protected CustomPanelAPI nextGamePanel;
     protected CustomPanelAPI skipToEndPanel;
@@ -415,7 +405,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected CustomPanelAPI leaveButtonPanel;
     protected CustomPanelAPI returnToLobbyPanel;
     protected CustomPanelAPI startBattlePanel;
-    protected CustomPanelAPI cancelPanel;
     
     protected List<ButtonAPI> championSelectButtons = new ArrayList<>();
     protected List<ButtonAPI> betAmountButtons = new ArrayList<>();
@@ -430,7 +419,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     protected float[] cachedOdds = new float[5];
     protected boolean oddsCached = false;
     
-    protected int pendingBetAmount = 0;
     protected boolean showingBetAmounts = false;
     protected boolean addingBetDuringBattle = false;
     
@@ -445,8 +433,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
     
     protected int lastCurrentRound = -1;
     protected int lastTotalBet = -1;
-    protected String lastInstructionText = null;
-    
+
     protected int[] lastShipHp = new int[5];
     protected int[] lastShipMaxHp = new int[5];
     protected boolean[] lastShipDead = new boolean[5];
@@ -480,7 +467,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         void onStartBattle();
         void onWatchNextRound();
         void onSkipToEnd();
-        void onAddBetToChampion(int championIndex, int amount);
         void onSuspend();
         void onLeave();
         void onReturnToLobby();
@@ -729,8 +715,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         skipToEndPanel.addUIElement(skipTooltip).inTL(0, 0);
         panel.addComponent(skipToEndPanel).inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 3, bottomY);
         skipToEndPanel.getPosition().inTL(-1000f, -1000f);
-        
-        float topY = bottomY - BUTTON_HEIGHT - BUTTON_SPACING;
+
         watchNextPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
         TooltipMakerAPI watchTooltip = watchNextPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
         watchNextButton = watchTooltip.addButton("Next Round", "arena_watch_next", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
@@ -893,15 +878,14 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         final float LABEL_HEIGHT = 30f;
         
         float x = SHIP_COLUMN_WIDTH + MARGIN;
-        float y = MARGIN;
-        
+
         roundPanel = panel.createCustomPanel(LABEL_WIDTH, LABEL_HEIGHT, null);
         TooltipMakerAPI tooltip = roundPanel.createUIElement(LABEL_WIDTH, LABEL_HEIGHT, false);
         roundLabel = tooltip.addPara("Round: 0", Color.CYAN, 0f);
         roundLabel.setAlignment(Alignment.LMID);
         roundLabel.getPosition().inTL(0, 0);
         roundPanel.addUIElement(tooltip).inTL(0, 0);
-        panel.addComponent(roundPanel).inTL(x, y);
+        panel.addComponent(roundPanel).inTL(x, MARGIN);
     }
     
     protected void createBetLabel() {
@@ -911,15 +895,14 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         final float LABEL_HEIGHT = 30f;
         
         float x = SHIP_COLUMN_WIDTH + MARGIN + 160f;
-        float y = MARGIN;
-        
+
         betPanel = panel.createCustomPanel(LABEL_WIDTH, LABEL_HEIGHT, null);
         TooltipMakerAPI tooltip = betPanel.createUIElement(LABEL_WIDTH, LABEL_HEIGHT, false);
         betLabel = tooltip.addPara("Total Bet: 0", Color.YELLOW, 0f);
         betLabel.setAlignment(Alignment.LMID);
         betLabel.getPosition().inTL(0, 0);
         betPanel.addUIElement(tooltip).inTL(0, 0);
-        panel.addComponent(betPanel).inTL(x, y);
+        panel.addComponent(betPanel).inTL(x, MARGIN);
     }
     
     protected void createInstructionLabel() {
@@ -929,15 +912,14 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         final float LABEL_HEIGHT = 30f;
         
         float x = SHIP_COLUMN_WIDTH + MARGIN + 360f;
-        float y = MARGIN;
-        
+
         instructionPanel = panel.createCustomPanel(LABEL_WIDTH, LABEL_HEIGHT, null);
         TooltipMakerAPI tooltip = instructionPanel.createUIElement(LABEL_WIDTH, LABEL_HEIGHT, false);
         instructionLabel = tooltip.addPara("Select a champion to bet on:", Color.WHITE, 0f);
         instructionLabel.setAlignment(Alignment.LMID);
         instructionLabel.getPosition().inTL(0, 0);
         instructionPanel.addUIElement(tooltip).inTL(0, 0);
-        panel.addComponent(instructionPanel).inTL(x, y);
+        panel.addComponent(instructionPanel).inTL(x, MARGIN);
     }
     
     protected void createResultLabel() {
@@ -996,8 +978,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         for (int i = 0; i < combatants.size() && i < 5; i++) {
             SpiralAbyssArena.SpiralGladiator ship = combatants.get(i);
             float shipY = startY + i * totalItemHeight;
-            float labelY = shipY + BOX_HEIGHT + BOX_SPACING;
-            
+
             shipNamePanels[i] = panel.createCustomPanel(NAME_WIDTH, NAME_HEIGHT, null);
             TooltipMakerAPI nameTooltip = shipNamePanels[i].createUIElement(NAME_WIDTH, NAME_HEIGHT, false);
             String fullName = ship.prefix + " " + ship.hullName + " " + ship.affix;
@@ -1007,8 +988,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             shipNamePanels[i].addUIElement(nameTooltip).inTL(0, 0);
             panel.addComponent(shipNamePanels[i]).inTL(MARGIN, shipY + BOX_HEIGHT + 2f);
             applyShipNameHighlighting(shipNameLabels[i], ship);
-            
-            float hpY = labelY + NAME_HEIGHT;
+
             shipHpPanels[i] = panel.createCustomPanel(HP_WIDTH, HP_HEIGHT, null);
             TooltipMakerAPI hpTooltip = shipHpPanels[i].createUIElement(HP_WIDTH, HP_HEIGHT, false);
             shipHpLabels[i] = hpTooltip.addPara(ship.hp + "/" + ship.maxHp + " HP", COLOR_HEALTHY, 0f);
@@ -1017,7 +997,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             shipHpPanels[i].addUIElement(hpTooltip).inTL(0, 0);
             panel.addComponent(shipHpPanels[i]).inTL(MARGIN + 5f, shipY + BOX_HEIGHT + NAME_HEIGHT + 4f);
             
-            float oddsY = hpY + HP_HEIGHT;
             float displayOdds = oddsCached && i < cachedOdds.length ? cachedOdds[i] : ship.getCurrentOdds(currentRound);
             shipOddsPanels[i] = panel.createCustomPanel(ODDS_WIDTH, ODDS_HEIGHT, null);
             TooltipMakerAPI oddsTooltip = shipOddsPanels[i].createUIElement(ODDS_WIDTH, ODDS_HEIGHT, false);
@@ -1056,10 +1035,10 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         Misc.renderQuad(x, y, SHIP_COLUMN_WIDTH, h, COLOR_SIDEBAR, alphaMult);
         
         if (combatants != null) {
-            renderShipBoxes(x, y, w, h, alphaMult);
+            renderShipBoxes(x, y, h, alphaMult);
         }
         
-        renderBattleLogSprites(x, y, w, h, alphaMult);
+        renderBattleLogSprites(x, y, alphaMult);
         
         // Draw divider line between battle log and reward breakdown
         float dividerX = x + SHIP_COLUMN_WIDTH + CENTER_COLUMN_WIDTH - 5f;
@@ -1080,7 +1059,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
     
-    protected void renderShipBoxes(float panelX, float panelY, float panelW, float panelH, float alphaMult) {
+    protected void renderShipBoxes(float panelX, float panelY, float panelH, float alphaMult) {
         if (combatants == null) return;
         
         final float NAME_HEIGHT = 16f;
@@ -1095,22 +1074,25 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             float shipY = startY + i * totalItemHeight;
             float shipX = MARGIN;
             
+            // Reset GL state at start of each ship - DISABLE textures for quad rendering
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL11.glDisable(GL11.GL_TEXTURE_2D);
+            
             float screenY = panelY + panelH - shipY - BOX_HEIGHT;
             
-            Color boxColor;
-            float opacity;
-            
+            // Calculate HP percentage for fill
+            float hpPercent;
+            Color hpColor;
             if (ship.isDead) {
-                boxColor = COLOR_DESTROYED;
-                opacity = 0.5f;
-            } else if (ship.hp < ship.maxHp) {
-                boxColor = COLOR_DAMAGED;
-                opacity = 0.7f + 0.3f * ((float) ship.hp / ship.maxHp);
+                hpPercent = 0.08f; // Small red sliver for dead ships
+                hpColor = COLOR_DESTROYED;
             } else {
-                boxColor = COLOR_HEALTHY;
-                opacity = 1.0f;
+                hpPercent = Math.max(0, Math.min(1, (float) ship.hp / ship.maxHp));
+                hpColor = hpPercent > 0.5f ? COLOR_HEALTHY : (hpPercent > 0.25f ? COLOR_DAMAGED : COLOR_DESTROYED);
             }
             
+            // Selection highlight
             if (i == selectedChampionIndex) {
                 GL11.glDisable(GL11.GL_TEXTURE_2D);
                 GL11.glColor4f(COLOR_SELECTED.getRed() / 255f, COLOR_SELECTED.getGreen() / 255f, 
@@ -1123,7 +1105,25 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 GL11.glEnd();
             }
             
-            Misc.renderQuad(panelX + shipX, screenY, BOX_WIDTH, BOX_HEIGHT, boxColor, alphaMult * opacity * 0.3f);
+            // 1. Render dark gray background (full box)
+            Misc.renderQuad(panelX + shipX, screenY, BOX_WIDTH, BOX_HEIGHT, COLOR_BOX_BG, alphaMult * 0.8f);
+            
+            // 2. Render HP fill (from LEFT, width = BOX_WIDTH * hpPercent)
+            float fillWidth = (BOX_WIDTH - 2) * hpPercent;
+            Misc.renderQuad(panelX + shipX + 1, screenY + 1, fillWidth, BOX_HEIGHT - 2, hpColor, alphaMult * 0.6f);
+            
+            // 3. Render border around entire box
+            GL11.glDisable(GL11.GL_TEXTURE_2D);
+            GL11.glColor4f(COLOR_BOX_BORDER.getRed() / 255f, COLOR_BOX_BORDER.getGreen() / 255f,
+                COLOR_BOX_BORDER.getBlue() / 255f, alphaMult * 0.8f);
+            GL11.glLineWidth(1f);
+            GL11.glBegin(GL11.GL_LINE_LOOP);
+            GL11.glVertex2f(panelX + shipX, screenY);
+            GL11.glVertex2f(panelX + shipX + BOX_WIDTH, screenY);
+            GL11.glVertex2f(panelX + shipX + BOX_WIDTH, screenY + BOX_HEIGHT);
+            GL11.glVertex2f(panelX + shipX, screenY + BOX_HEIGHT);
+            GL11.glEnd();
+            GL11.glEnable(GL11.GL_TEXTURE_2D);
             
             SpriteAPI sprite = getShipSprite(ship.hullId);
             if (sprite != null) {
@@ -1145,7 +1145,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 
                 if (ship.isDead) {
                     tint = COLOR_TINT_DEAD;
-                    spriteAlpha = 0.4f * alphaMult;
+                    spriteAlpha = 0.6f * alphaMult;
                 } else if (ship.hp < ship.maxHp * 0.5f) {
                     tint = COLOR_TINT_DAMAGED;
                     spriteAlpha = 0.8f * alphaMult;
@@ -1171,18 +1171,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 GL11.glVertex2f(panelX + shipX + 10, screenY + 10);
                 GL11.glEnd();
                 GL11.glLineWidth(1f);
-            }
-            
-            float hpBarHeight = 6f;
-            float hpPercent = (float) ship.hp / ship.maxHp;
-            Color hpColor = hpPercent > 0.5f ? COLOR_HEALTHY : (hpPercent > 0.25f ? COLOR_DAMAGED : COLOR_DESTROYED);
-            
-            float hpBarY = screenY + BOX_HEIGHT - hpBarHeight - 2;
-            Misc.renderQuad(panelX + shipX + 2, hpBarY, BOX_WIDTH - 4, hpBarHeight, 
-                COLOR_HP_BAR_BG, alphaMult * 0.8f);
-            if (hpPercent > 0) {
-                Misc.renderQuad(panelX + shipX + 2, hpBarY, (BOX_WIDTH - 4) * hpPercent, hpBarHeight, 
-                    hpColor, alphaMult);
+                GL11.glEnable(GL11.GL_TEXTURE_2D);
             }
         }
     }
@@ -1354,7 +1343,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 // Don't show "Battle Complete!" - keep empty
                 resultLabel.setText("");
             } else {
-                if (winnerIndex >= 0 && winnerIndex < combatants.size()) {
+                if (winnerIndex >= 0 && winnerIndex < Objects.requireNonNull(combatants).size()) {
                     SpiralAbyssArena.SpiralGladiator winner = combatants.get(winnerIndex);
                     resultLabel.setText("WINNER: " + winner.hullName + "!\nReward: " + totalReward + " Stargems");
                     resultLabel.setColor(Color.GREEN);
@@ -1434,8 +1423,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         for (RewardBreakdown.ShipRewardInfo shipInfo : rewardBreakdown.shipRewards) {
             if (shipInfo.betAmount <= 0) continue;
             if (lineIndex >= MAX_REWARD_LINES) break;
-            
-            String statusStr = shipInfo.isWinner ? "SURVIVOR" : "DEFEATED";
+
             Color statusColor = shipInfo.isWinner ? winColor : Color.RED;
             String posStr = getPositionString(shipInfo.finalPosition);
             float killBonusPct = shipInfo.kills * CasinoConfig.ARENA_KILL_BONUS_PER_KILL * 100;
@@ -1508,23 +1496,8 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         }
         return filtered;
     }
-    
-    protected void updateBattleLog() {
-        // Text-based battle log removed - using sprite-based display instead
-        // Keeping method stub for potential future use
-    }
-    
-    protected String getShipShortNameByHullId(String hullId) {
-        if (combatants == null || hullId == null) return "???";
-        for (SpiralAbyssArena.SpiralGladiator g : combatants) {
-            if (hullId.equals(g.hullId)) {
-                return g.shortName;
-            }
-        }
-        return "???";
-    }
-    
-    protected void renderBattleLogSprites(float panelX, float panelY, float panelW, float panelH, float alphaMult) {
+
+    protected void renderBattleLogSprites(float panelX, float panelY, float alphaMult) {
         List<ParsedLogEntry> validEntries = getFilteredEntries();
 
         int maxLines = 12;
@@ -1542,10 +1515,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         
         float leftSpriteX = panelX + logPanelX + LOG_LEFT_MARGIN + LOG_SPRITE_SIZE / 2f;
         float rightSpriteX = panelX + logPanelX + logPanelW - LOG_LEFT_MARGIN - LOG_SPRITE_SIZE / 2f;
-        
-        float textWidthTwoSprites = logPanelW - LOG_LEFT_MARGIN * 2 - LOG_SPRITE_SIZE * 2 - LOG_SPRITE_GAP * 2 - 30f;
-        float textWidthOneSprite = logPanelW - LOG_LEFT_MARGIN * 2 - LOG_SPRITE_SIZE - LOG_SPRITE_GAP - 30f;
-        
+
         float textStartX_twoSprites = logPanelX + LOG_LEFT_MARGIN + LOG_SPRITE_SIZE + LOG_SPRITE_GAP;
         float textStartX_oneSprite = logPanelX + LOG_LEFT_MARGIN;
 
@@ -1557,54 +1527,61 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
 
             String labelText = "";
             Color labelColor = Color.WHITE;
-            boolean hasTwoSprites = true;
             float textX = textStartX_twoSprites;
 
-            if (entry.type.equals("HIT")) {
-                labelText = shortenDamageText(entry.rawEntry);
-                labelColor = entry.isCrit ? new Color(255, 100, 100) : new Color(255, 255, 100);
-                
-                drawBattleLogSpriteWithDead(entry.attackerHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
-                drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
-                
-            } else if (entry.type.equals("MISS")) {
-                labelText = shortenDamageText(entry.rawEntry);
-                labelColor = new Color(150, 150, 150);
-                
-                drawBattleLogSpriteWithDead(entry.targetHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
-                drawBattleLogSpriteWithDead(entry.attackerHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
-                
-            } else if (entry.type.equals("KILL")) {
-                String killText = entry.rawEntry;
-                if (killText.startsWith("[KILL] ")) {
-                    killText = killText.substring(7);
+            switch (entry.type)
+            {
+                case "HIT" ->
+                {
+                    labelText = shortenDamageText(entry.rawEntry);
+                    labelColor = entry.isCrit ? new Color(255, 100, 100) : new Color(255, 255, 100);
+
+                    drawBattleLogSpriteWithDead(entry.attackerHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
+                    drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
                 }
-                labelText = shortenDamageText(killText);
-                labelColor = new Color(255, 50, 50);
-                
-                drawBattleLogSpriteWithDead(entry.attackerHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
-                drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, true);
-                
-            } else if (entry.type.equals("EVENT")) {
-                hasTwoSprites = false;
-                String eventText = entry.rawEntry;
-                labelText = shortenDamageText(eventText);
-                labelColor = new Color(100, 200, 255);
-                textX = textStartX_oneSprite;
-                
-                drawBattleLogSpriteWithDead(entry.attackerHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
-                
-            } else if (entry.type.equals("EVENT_HIT")) {
-                hasTwoSprites = false;
-                String hitText = entry.rawEntry;
-                if (hitText.startsWith("[HIT] ")) {
-                    hitText = hitText.substring(6);
+                case "MISS" ->
+                {
+                    labelText = shortenDamageText(entry.rawEntry);
+                    labelColor = new Color(150, 150, 150);
+
+                    drawBattleLogSpriteWithDead(entry.targetHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
+                    drawBattleLogSpriteWithDead(entry.attackerHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
                 }
-                labelText = shortenDamageText(hitText);
-                labelColor = new Color(255, 200, 50);
-                textX = textStartX_oneSprite;
-                
-                drawBattleLogSpriteWithDead(entry.attackerHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
+                case "KILL" ->
+                {
+                    String killText = entry.rawEntry;
+                    if (killText.startsWith("[KILL] "))
+                    {
+                        killText = killText.substring(7);
+                    }
+                    labelText = shortenDamageText(killText);
+                    labelColor = new Color(255, 50, 50);
+
+                    drawBattleLogSpriteWithDead(entry.attackerHullId, leftSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
+                    drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, true);
+                }
+                case "EVENT" ->
+                {
+                    String eventText = entry.rawEntry;
+                    labelText = shortenDamageText(eventText);
+                    labelColor = new Color(100, 200, 255);
+                    textX = textStartX_oneSprite;
+
+                    drawBattleLogSpriteWithDead(entry.attackerHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
+                }
+                case "EVENT_HIT" ->
+                {
+                    String hitText = entry.rawEntry;
+                    if (hitText.startsWith("[HIT] "))
+                    {
+                        hitText = hitText.substring(6);
+                    }
+                    labelText = shortenDamageText(hitText);
+                    labelColor = new Color(255, 200, 50);
+                    textX = textStartX_oneSprite;
+
+                    drawBattleLogSpriteWithDead(entry.attackerHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
+                }
             }
 
             if (battleLogTextLabels[lineIndex] != null && !labelText.isEmpty()) {
@@ -1664,28 +1641,12 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             }
         }
     }
-    
-    protected boolean isHullIdDead(String hullId) {
-        if (combatants == null || hullId == null) return false;
-        for (SpiralAbyssArena.SpiralGladiator g : combatants) {
-            if (hullId.equals(g.hullId)) {
-                return g.isDead;
-            }
-        }
-        return false;
-    }
-    
+
     protected String shortenDamageText(String text) {
         if (text == null) return "";
         return text.replace("CRIT damage", "CRIT dmg").replace("damage", "dmg");
     }
-    
-    public void render(float alphaMult) {
-    }
-    
-    public void advance(float amount) {
-    }
-    
+
     public void processInput(List<InputEventAPI> events) {
         for (InputEventAPI event : events) {
             if (event.isConsumed()) continue;
@@ -1830,7 +1791,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
             if (actionCallback != null) {
                 actionCallback.onStartBattle();
             }
-            return;
         }
     }
     

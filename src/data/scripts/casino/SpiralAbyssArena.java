@@ -212,16 +212,36 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
     public List<SpiralGladiator> generateCombatants(CasinoGachaManager gacha) {
         List<SpiralGladiator> list = new ArrayList<>();
         List<String> pool = new ArrayList<>();
+        Set<String> usedHullIds = new HashSet<>();
         
-        // Always include the current featured ships to promote them!
-        CasinoGachaManager.GachaData data = gacha.getData();
-        if (data.featuredCapital != null) pool.add(data.featuredCapital);
-        pool.addAll(data.featuredCruisers);
+        // Use random ships from all gacha-eligible ships, not just featured ones
+        // This ensures fresh ship pool for each arena match
+        String randomCapital = gacha.getRandomStandardHull(ShipAPI.HullSize.CAPITAL_SHIP, null);
+        if (randomCapital != null && !usedHullIds.contains(randomCapital)) {
+            pool.add(randomCapital);
+            usedHullIds.add(randomCapital);
+        }
         
-        // Fill the rest with random smaller hulls
-        while (pool.size() < CasinoConfig.ARENA_SHIP_COUNT) {
+        // Add 2 random cruisers (avoid duplicates)
+        int attempts = 0;
+        while (pool.size() < 3 && attempts < 20) {
+            String randomCruiser = gacha.getRandomStandardHull(ShipAPI.HullSize.CRUISER, null);
+            if (randomCruiser != null && !usedHullIds.contains(randomCruiser)) {
+                pool.add(randomCruiser);
+                usedHullIds.add(randomCruiser);
+            }
+            attempts++;
+        }
+        
+        // Fill the rest with random destroyers (avoid duplicates)
+        attempts = 0;
+        while (pool.size() < CasinoConfig.ARENA_SHIP_COUNT && attempts < 50) {
             String randomHull = gacha.getRandomStandardHull(ShipAPI.HullSize.DESTROYER, null);
-            if (randomHull != null) pool.add(randomHull);
+            if (randomHull != null && !usedHullIds.contains(randomHull)) {
+                pool.add(randomHull);
+                usedHullIds.add(randomHull);
+            }
+            attempts++;
         }
         
         for (String hullId : pool) {
@@ -290,6 +310,14 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
     public List<String> simulateStep(List<SpiralGladiator> combatants, int currentRound) {
         List<String> log = new ArrayList<>();
         
+        // DEBUG: Log combatants at round start
+        Global.getLogger(this.getClass()).info("=== ROUND " + currentRound + " START ===");
+        Global.getLogger(this.getClass()).info("Combatants passed to simulateStep: " + combatants.size());
+        for (int i = 0; i < combatants.size(); i++) {
+            SpiralGladiator g = combatants.get(i);
+            Global.getLogger(this.getClass()).info("  [" + i + "] " + g.shortName + " dead=" + g.isDead + " attacks=" + g.totalAttacks + " hp=" + g.hp + "/" + g.maxHp);
+        }
+        
         List<SpiralGladiator> alive = new ArrayList<>();
         for (SpiralGladiator g : combatants) if (!g.isDead) alive.add(g);
         
@@ -298,12 +326,21 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
         int attacksThisStep = Math.max(alive.size(), (int)(alive.size() * CasinoConfig.ARENA_ACTION_MULTIPLIER));
         int attacksDoneThisStep = 0;
         
+        // DEBUG: Log round configuration
+        Global.getLogger(this.getClass()).info("Round config: alive=" + alive.size() + " attacksThisStep=" + attacksThisStep + " multiplier=" + CasinoConfig.ARENA_ACTION_MULTIPLIER);
+        
         while (true) {
             List<SpiralGladiator> currentAlive = new ArrayList<>();
             for (SpiralGladiator g : combatants) if (!g.isDead) currentAlive.add(g);
-            if (currentAlive.size() < 2) break;
+            if (currentAlive.size() < 2) {
+                Global.getLogger(this.getClass()).info("Round ended: <2 ships alive (" + currentAlive.size() + ")");
+                break;
+            }
             
-            if (attacksDoneThisStep >= attacksThisStep) break;
+            if (attacksDoneThisStep >= attacksThisStep) {
+                Global.getLogger(this.getClass()).info("Round ended: attacksDone (" + attacksDoneThisStep + ") >= attacksThisStep (" + attacksThisStep + ")");
+                break;
+            }
             
             int minAttacks = Integer.MAX_VALUE;
             for (SpiralGladiator g : currentAlive) {
@@ -317,18 +354,29 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                 }
             }
             
+            // DEBUG: Log eligible attackers
+            Global.getLogger(this.getClass()).info("Action " + (attacksDoneThisStep + 1) + ": minAttacks=" + minAttacks + " eligible=" + eligibleAttackers.size());
+            for (SpiralGladiator g : eligibleAttackers) {
+                Global.getLogger(this.getClass()).info("  Eligible: " + g.shortName + " (attacks=" + g.totalAttacks + ")");
+            }
+            
             SpiralGladiator attacker = eligibleAttackers.get(random.nextInt(eligibleAttackers.size()));
             attacker.totalAttacks++;
             attacksDoneThisStep++;
             
+Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortName + " (now has " + attacker.totalAttacks + " attacks)");
+            
             SpiralGladiator target = currentAlive.get(random.nextInt(currentAlive.size()));
             while (target == attacker) target = currentAlive.get(random.nextInt(currentAlive.size()));
+            
+            Global.getLogger(this.getClass()).info("  Selected target: " + target.shortName + " (HP: " + target.hp + "/" + target.maxHp + ")");
             
             if (attacker.retaliateTarget != null && !attacker.retaliateTarget.isDead) {
                 target = attacker.retaliateTarget;
                 attacker.isEnraged = true;
                 attacker.targetOfRage = attacker.retaliateTarget;
                 attacker.retaliateTarget = null;
+                Global.getLogger(this.getClass()).info("  RETALIATION: " + attacker.shortName + " targets " + target.shortName + " instead!");
             } else if (attacker.retaliateTarget != null) {
                 attacker.retaliateTarget = null;
                 attacker.isEnraged = false;
@@ -341,10 +389,15 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
             }
 
             float hitChance = 0.7f + attacker.agility - target.agility;
-            if (random.nextFloat() < hitChance) {
+            float hitRoll = random.nextFloat();
+            Global.getLogger(this.getClass()).info("  Hit roll: " + hitRoll + " vs hitChance " + hitChance);
+            if (hitRoll < hitChance) {
                 boolean crit = random.nextFloat() < attacker.bravery;
                 int dmg = (int)(attacker.power * (crit ? 1.5f : 1.0f));
+                int hpBefore = target.hp;
                 target.hp -= dmg;
+                
+                Global.getLogger(this.getClass()).info("  HIT! " + attacker.shortName + " -> " + target.shortName + " for " + dmg + (crit ? " (CRIT!)" : "") + " | HP: " + hpBefore + " -> " + target.hp);
                 
                 String flavor = crit ? getFlavor(CasinoConfig.ARENA_CRIT_FLAVOR_TEXTS, lastCritHistory) : getFlavor(CasinoConfig.ARENA_FLAVOR_TEXTS, lastAttackHistory);
                 
@@ -354,6 +407,7 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                     target.retaliateTarget = attacker;
                     target.isEnraged = true;
                     target.targetOfRage = attacker;
+                    Global.getLogger(this.getClass()).info("  " + target.shortName + " becomes ENRAGED at " + attacker.shortName + "!");
                 }
                 
                 if (target.hp <= 0) {
@@ -363,10 +417,12 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                     attacker.kills++;
                     String kill = getFlavor(CasinoConfig.ARENA_KILL_FLAVOR_TEXTS, lastKillHistory);
                     log.add("[KILL] " + kill.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
+                    Global.getLogger(this.getClass()).info("  KILL! " + target.shortName + " destroyed by " + attacker.shortName);
                 }
-            } else {
+} else {
                 String miss = getFlavor(CasinoConfig.ARENA_MISS_FLAVOR_TEXTS, lastMissHistory);
                 log.add(miss.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
+                Global.getLogger(this.getClass()).info("  MISS! " + attacker.shortName + " -> " + target.shortName);
             }
         }
 
@@ -376,14 +432,19 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
 
         // Check for unpredictable Chaos Events (happen after ship actions)
         // Chaos events cannot happen on first round (round 0) to give players a fair chance
+        Global.getLogger(this.getClass()).info("Checking chaos events: currentRound=" + currentRound + " alive=" + alive.size());
         if (currentRound > 0 && alive.size() >= 2 && random.nextFloat() < CasinoConfig.ARENA_CHAOS_EVENT_CHANCE) {
             ChaosEventType type = ChaosEventType.values()[random.nextInt(ChaosEventType.values().length)];
+            Global.getLogger(this.getClass()).info("CHAOS EVENT triggered! Type: " + type);
 
             if (type == ChaosEventType.SINGLE_SHIP_DAMAGE) {
                 // Single ship damage event - pick one random ship
                 SpiralGladiator target = alive.get(random.nextInt(alive.size()));
                 int dmg = (int)(target.maxHp * CasinoConfig.ARENA_SINGLE_SHIP_DAMAGE_PERCENT);
+                int hpBefore = target.hp;
                 target.hp -= dmg;
+
+                Global.getLogger(this.getClass()).info("  SINGLE_SHIP_DAMAGE: " + target.shortName + " HP " + hpBefore + " -> " + target.hp + " (dmg=" + dmg + ")");
 
                 // Get random description from config
                 String description = getRandomDescription(CasinoConfig.ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS);
@@ -395,6 +456,7 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                     target.isEnraged = false;
                     target.targetOfRage = null;
                     log.add("[KILL] " + target.shortName + " was destroyed by the incident!");
+                    Global.getLogger(this.getClass()).info("  KILL by chaos event: " + target.shortName);
                 }
             } else if (type == ChaosEventType.MULTI_SHIP_DAMAGE) {
                 // Multi ship damage event - damage multiple ships
@@ -405,12 +467,15 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                 // Get random description from config
                 String description = getRandomDescription(CasinoConfig.ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS);
                 log.add("[EVENT] " + description);
+                Global.getLogger(this.getClass()).info("  MULTI_SHIP_DAMAGE: " + shipsToDamage + " ships affected");
 
                 for (int i = 0; i < shipsToDamage && i < shuffled.size(); i++) {
                     SpiralGladiator target = shuffled.get(i);
                     int dmg = (int)(target.maxHp * CasinoConfig.ARENA_MULTI_SHIP_DAMAGE_PERCENT);
+                    int hpBefore = target.hp;
                     target.hp -= dmg;
                     log.add("[HIT] " + target.shortName + " takes " + dmg + " damage!");
+                    Global.getLogger(this.getClass()).info("    " + target.shortName + " HP " + hpBefore + " -> " + target.hp + " (dmg=" + dmg + ")");
 
                     // Check if ship died from event
                     if (target.hp <= 0) {
@@ -418,9 +483,12 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                         target.isEnraged = false;
                         target.targetOfRage = null;
                         log.add("[KILL] " + target.shortName + " was destroyed!");
+                        Global.getLogger(this.getClass()).info("    KILL by chaos event: " + target.shortName);
                     }
                 }
             }
+        } else {
+            Global.getLogger(this.getClass()).info("No chaos event this round (currentRound=" + currentRound + ", alive=" + alive.size() + ")");
         }
 
         // Add status of all remaining ships to the log
@@ -435,6 +503,13 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
             log.add("--- SHIP STATUS ---");
             for (SpiralGladiator g : remainingShips) {
                 log.add(g.getStatusString());
+            }
+            
+            // DEBUG: Log total attacks for all ships (alive and dead)
+            log.add("--- DEBUG: Total Attacks ---");
+            for (SpiralGladiator g : combatants) {
+                String status = g.isDead ? "[DEAD]" : "[ALIVE]";
+                log.add(status + " " + g.shortName + " attacks: " + g.totalAttacks + " HP:" + g.hp + "/" + g.maxHp);
             }
         }
         

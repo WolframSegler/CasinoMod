@@ -196,7 +196,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin {
         // This ensures animation triggers exactly once when entering showdown
         // Also handles initial state (previousRound is null) - if we're already at showdown, animate
         boolean enteringShowdown = state.round == PokerGame.Round.SHOWDOWN && 
-                                   (previousRound == null || previousRound != PokerGame.Round.SHOWDOWN);
+                                   previousRound != PokerGame.Round.SHOWDOWN;
         Global.getLogger(PokerPanelUI.class).info("enteringShowdown=" + enteringShowdown + " folder=" + state.folder);
         if (enteringShowdown && state.folder == null) {
             boolean anyTriggered = false;
@@ -599,145 +599,6 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
     }
     
     /**
-     * Creates action buttons at the bottom of the panel.
-     * 
-     * BUTTON HIERARCHY (per UI tutorial):
-     * 1. Create sub-panel from main panel: panel.createCustomPanel()
-     * 2. Create TooltipMakerAPI from sub-panel: subPanel.createUIElement()
-     * 3. Add button to tooltip: tooltip.addButton()
-     * 4. Add tooltip to sub-panel: subPanel.addUIElement(tooltip)
-     * 5. Add sub-panel to main panel: panel.addComponent(subPanel)
-     * 
-     * IMPORTANT: Buttons must be recreated when game state changes.
-     * This is called from updateButtons() which clears old buttons first.
-     */
-    protected void createButtons() {
-        if (panel == null || p == null) {
-            return;
-        }
-        
-        // Clear old button references
-        foldButton = null;
-        checkCallButton = null;
-        raiseButton = null;
-        allInButton = null;
-        raiseOptionButtons.clear();
-        backButton = null;
-        
-        float panelWidth = p.getWidth();
-        float panelHeight = p.getHeight();
-        float bottomY = MARGIN; // Bottom margin
-        
-        // Get current game state for button labels
-        PokerGame.PokerState state = game.getState();
-        int callAmount = state.opponentBet - state.playerBet;
-        boolean opponentEffectivelyAllIn = state.opponentStack <= state.bigBlind || state.opponentDeclaredAllIn;
-        boolean canRaise = state.playerStack > 0 && state.opponentStack > 0 && callAmount < state.playerStack && !opponentEffectivelyAllIn;
-        
-        // ----------------------------------------------------------------------
-        // Action buttons row (Fold, Check/Call, Raise)
-        // ----------------------------------------------------------------------
-        float actionButtonsY = bottomY;
-        float totalActionWidth = BUTTON_WIDTH * 3 + BUTTON_SPACING * 2;
-        float actionStartX = (panelWidth - totalActionWidth) / 2f;
-        
-        // Fold button (always available unless it's not player's turn)
-        if (state.currentPlayer == PokerGame.CurrentPlayer.PLAYER && 
-            state.round != PokerGame.Round.SHOWDOWN) {
-            CustomPanelAPI foldPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            TooltipMakerAPI foldTooltip = foldPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            foldButton = foldTooltip.addButton("Fold", "poker_fold", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            foldButton.getPosition().inTL(0, 0);
-            foldPanel.addUIElement(foldTooltip).inTL(0, 0);
-            panel.addComponent(foldPanel).inTL(actionStartX, actionButtonsY);
-        }
-        
-        // Check/Call button
-        if (state.currentPlayer == PokerGame.CurrentPlayer.PLAYER && 
-            state.round != PokerGame.Round.SHOWDOWN) {
-            String checkCallLabel = callAmount > 0 ? 
-                "Call " + callAmount : "Check";
-            float checkCallX = actionStartX + BUTTON_WIDTH + BUTTON_SPACING;
-            
-            CustomPanelAPI checkCallPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            TooltipMakerAPI checkCallTooltip = checkCallPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            checkCallButton = checkCallTooltip.addButton(checkCallLabel, "poker_check_call", 
-                BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            checkCallButton.getPosition().inTL(0, 0);
-            checkCallPanel.addUIElement(checkCallTooltip).inTL(0, 0);
-            panel.addComponent(checkCallPanel).inTL(checkCallX, actionButtonsY);
-        }
-        
-        // Raise button
-        if (canRaise && state.currentPlayer == PokerGame.CurrentPlayer.PLAYER && 
-            state.round != PokerGame.Round.SHOWDOWN) {
-            float raiseX = actionStartX + (BUTTON_WIDTH + BUTTON_SPACING) * 2;
-            
-            CustomPanelAPI raisePanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            TooltipMakerAPI raiseTooltip = raisePanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            raiseButton = raiseTooltip.addButton("Raise", "poker_raise", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            raiseButton.getPosition().inTL(0, 0);
-            raisePanel.addUIElement(raiseTooltip).inTL(0, 0);
-            panel.addComponent(raisePanel).inTL(raiseX, actionButtonsY);
-        }
-        
-        // ----------------------------------------------------------------------
-        // Raise amount options (show when raise mode is active)
-        // For now, we'll create them inline as separate buttons
-        // Label ABOVE the buttons
-        // ----------------------------------------------------------------------
-        if (canRaise && state.currentPlayer == PokerGame.CurrentPlayer.PLAYER && 
-            state.round != PokerGame.Round.SHOWDOWN) {
-            float raiseOptionsY = actionButtonsY + BUTTON_HEIGHT + BUTTON_SPACING;
-            float[] raiseAmounts = getRaiseOptions(state);
-            
-            final float LABEL_WIDTH = 200f;
-            float totalRaiseWidth = RAISE_BUTTON_WIDTH * raiseAmounts.length + BUTTON_SPACING * (raiseAmounts.length - 1);
-            float raiseStartX = (panelWidth - totalRaiseWidth) / 2f;
-            
-            float labelX = (panelWidth - LABEL_WIDTH) / 2f;
-            float labelY = raiseOptionsY + BUTTON_HEIGHT + 5f;
-            CustomPanelAPI raiseLabelPanel = panel.createCustomPanel(LABEL_WIDTH, 20f, null);
-            TooltipMakerAPI raiseLabelTooltip = raiseLabelPanel.createUIElement(LABEL_WIDTH, 20f, false);
-            LabelAPI raiseLabel = raiseLabelTooltip.addPara("Raise options:", new Color(200, 200, 200), 0f);
-            raiseLabel.setAlignment(Alignment.MID);
-            raiseLabel.getPosition().inTL(0, 0);
-            raiseLabelPanel.addUIElement(raiseLabelTooltip).inTL(0, 0);
-            panel.addComponent(raiseLabelPanel).inTL(labelX, labelY);
-            
-            for (int i = 0; i < raiseAmounts.length; i++) {
-                int amt = (int) raiseAmounts[i];
-                String label = formatRaiseLabel(amt, state.bigBlind, state.pot, state.playerStack, state.opponentBet, state.playerBet);
-                String btnId = "poker_raise_" + amt;
-                float btnX = raiseStartX + (RAISE_BUTTON_WIDTH + BUTTON_SPACING) * i;
-                
-                CustomPanelAPI raiseOptPanel = panel.createCustomPanel(RAISE_BUTTON_WIDTH, BUTTON_HEIGHT, null);
-                TooltipMakerAPI raiseOptTooltip = raiseOptPanel.createUIElement(RAISE_BUTTON_WIDTH, BUTTON_HEIGHT, false);
-                ButtonAPI btn = raiseOptTooltip.addButton(label, btnId, 
-                    RAISE_BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-                btn.setCustomData(btnId);
-                btn.getPosition().inTL(0, 0);
-                raiseOptPanel.addUIElement(raiseOptTooltip).inTL(0, 0);
-                panel.addComponent(raiseOptPanel).inTL(btnX, raiseOptionsY);
-                raiseOptionButtons.add(btn);
-            }
-        }
-        
-        // ----------------------------------------------------------------------
-        // Back to menu button (always visible, top-right)
-        // ----------------------------------------------------------------------
-        float backX = panelWidth - BUTTON_WIDTH - MARGIN;
-        float backY = panelHeight - BUTTON_HEIGHT - MARGIN;
-        
-        CustomPanelAPI backPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-        TooltipMakerAPI backTooltip = backPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-        backButton = backTooltip.addButton("Leave", "poker_leave", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-        backButton.getPosition().inTL(0, 0);
-        backPanel.addUIElement(backTooltip).inTL(0, 0);
-        panel.addComponent(backPanel).inTL(backX, backY);
-    }
-    
-    /**
      * Calculates raise amount options based on pot size and stack.
      * Returns TOTAL BET amounts (call amount + raise amount), not just raise portion.
      * This matches the text-based UI behavior where "Raise 50" when needing to call 300
@@ -825,7 +686,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         // This method is kept for compatibility but does nothing
     }
     
-    protected void updatePotDisplay(int pot, int bigBlind) {
+    protected void updatePotDisplay(int pot) {
         // Pot is now shown in the round label instead
     }
 
@@ -839,8 +700,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         
         final float STACK_PANEL_WIDTH = 420f;
         final float STACK_PANEL_HEIGHT = 30f;
-        
-        float oppX = MARGIN;
+
         float oppY = 140f;
         
         opponentStackPanel = panel.createCustomPanel(STACK_PANEL_WIDTH, STACK_PANEL_HEIGHT, null);
@@ -849,9 +709,8 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         opponentStackLabel.setAlignment(Alignment.LMID);
         opponentStackLabel.getPosition().inTL(0, 0);
         opponentStackPanel.addUIElement(oppTooltip).inTL(0, 0);
-        panel.addComponent(opponentStackPanel).inTL(oppX, oppY);
-        
-        float playerX = MARGIN;
+        panel.addComponent(opponentStackPanel).inTL(MARGIN, oppY);
+
         float playerY = PANEL_HEIGHT - 150f;
         
         playerStackPanel = panel.createCustomPanel(STACK_PANEL_WIDTH, STACK_PANEL_HEIGHT, null);
@@ -860,7 +719,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         playerStackLabel.setAlignment(Alignment.LMID);
         playerStackLabel.getPosition().inTL(0, 0);
         playerStackPanel.addUIElement(playerTooltip).inTL(0, 0);
-        panel.addComponent(playerStackPanel).inTL(playerX, playerY);
+        panel.addComponent(playerStackPanel).inTL(MARGIN, playerY);
     }
     
     /**
@@ -1175,10 +1034,10 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             lastOpponentHandSize != opponentHandSize ||
             lastCommunityCardsSize != communitySize;
         
-        if (!needsUpdate && lastCardUpdateRound == state.round) {
+        if (!needsUpdate) {
             for (int i = 0; i < playerHandSize && i < 2; i++) {
                 PokerGame.PokerGameLogic.Card card = state.playerHand.get(i);
-                String rankText = card != null ? getRankString(card.rank) : "??";
+                String rankText = card != null ? getRankString(card.rank()) : "??";
                 if (!rankText.equals(lastPlayerCardRanks[i])) {
                     needsUpdate = true;
                     break;
@@ -1208,9 +1067,9 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
                 float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
                 
                 if (playerCardRankLabels[i] != null && card != null) {
-                    String rankText = getRankString(card.rank);
+                    String rankText = getRankString(card.rank());
                     lastPlayerCardRanks[i] = rankText;
-                    Color color = getSuitColor(card.suit);
+                    Color color = getSuitColor(card.suit());
                     playerCardRankLabels[i].setText(rankText);
                     playerCardRankLabels[i].setColor(color);
                     playerCardRankLabels[i].setHighlight(0, rankText.length());
@@ -1233,9 +1092,9 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
                 float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
                 
                 if (opponentCardRankLabels[i] != null && card != null) {
-                    String rankText = getRankString(card.rank);
+                    String rankText = getRankString(card.rank());
                     lastOpponentCardRanks[i] = rankText;
-                    Color color = getSuitColor(card.suit);
+                    Color color = getSuitColor(card.suit());
                     opponentCardRankLabels[i].setText(rankText);
                     opponentCardRankLabels[i].setColor(color);
                     opponentCardRankLabels[i].setHighlight(0, rankText.length());
@@ -1266,9 +1125,9 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
                 float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
                 
                 if (communityCardRankLabels[i] != null && card != null) {
-                    String rankText = getRankString(card.rank);
+                    String rankText = getRankString(card.rank());
                     lastCommunityCardRanks[i] = rankText;
-                    Color color = getSuitColor(card.suit);
+                    Color color = getSuitColor(card.suit());
                     communityCardRankLabels[i].setText(rankText);
                     communityCardRankLabels[i].setColor(color);
                     communityCardRankLabels[i].setHighlight(0, rankText.length());
@@ -1409,42 +1268,44 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
         }
         
         String highCard = getRankName(score.tieBreakers.get(0));
-        
-        switch (score.rank) {
-            case HIGH_CARD:
-                return highCard + " high";
-            case PAIR:
-                return "Pair of " + highCard + "s";
-            case TWO_PAIR:
-                if (score.tieBreakers.size() >= 2) {
+
+        return switch (score.rank)
+        {
+            case HIGH_CARD -> highCard + " high";
+            case PAIR -> "Pair of " + highCard + "s";
+            case TWO_PAIR ->
+            {
+                if (score.tieBreakers.size() >= 2)
+                {
                     String firstPair = getRankName(score.tieBreakers.get(0));
                     String secondPair = getRankName(score.tieBreakers.get(1));
-                    return "Two Pair - " + firstPair + "s and " + secondPair + "s";
+                    yield "Two Pair - " + firstPair + "s and " + secondPair + "s";
                 }
-                return "Two Pair";
-            case THREE_OF_A_KIND:
-                return "Three " + highCard + "s";
-            case STRAIGHT:
-                return "Straight - " + highCard + " high";
-            case FLUSH:
-                return "Flush - " + highCard + " high";
-            case FULL_HOUSE:
-                if (score.tieBreakers.size() >= 2) {
+                yield "Two Pair";
+            }
+            case THREE_OF_A_KIND -> "Three " + highCard + "s";
+            case STRAIGHT -> "Straight - " + highCard + " high";
+            case FLUSH -> "Flush - " + highCard + " high";
+            case FULL_HOUSE ->
+            {
+                if (score.tieBreakers.size() >= 2)
+                {
                     String trips = getRankName(score.tieBreakers.get(0));
                     String pair = getRankName(score.tieBreakers.get(1));
-                    return "Full House - " + trips + "s full of " + pair + "s";
+                    yield "Full House - " + trips + "s full of " + pair + "s";
                 }
-                return "Full House";
-            case FOUR_OF_A_KIND:
-                return "Four " + highCard + "s";
-            case STRAIGHT_FLUSH:
-                if (highCard.equals("Ace")) {
-                    return "Royal Flush!";
+                yield "Full House";
+            }
+            case FOUR_OF_A_KIND -> "Four " + highCard + "s";
+            case STRAIGHT_FLUSH ->
+            {
+                if (highCard.equals("Ace"))
+                {
+                    yield "Royal Flush!";
                 }
-                return "Straight Flush - " + highCard + " high";
-            default:
-                return rankName;
-        }
+                yield "Straight Flush - " + highCard + " high";
+            }
+        };
     }
     
     /**
@@ -1452,40 +1313,41 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
      */
     protected String formatHandRank(PokerGame.PokerGameLogic.HandRank rank) {
         if (rank == null) return "Unknown";
-        switch (rank) {
-            case HIGH_CARD: return "High Card";
-            case PAIR: return "Pair";
-            case TWO_PAIR: return "Two Pair";
-            case THREE_OF_A_KIND: return "Three of a Kind";
-            case STRAIGHT: return "Straight";
-            case FLUSH: return "Flush";
-            case FULL_HOUSE: return "Full House";
-            case FOUR_OF_A_KIND: return "Four of a Kind";
-            case STRAIGHT_FLUSH: return "Straight Flush";
-            default: return rank.name();
-        }
+        return switch (rank)
+        {
+            case HIGH_CARD -> "High Card";
+            case PAIR -> "Pair";
+            case TWO_PAIR -> "Two Pair";
+            case THREE_OF_A_KIND -> "Three of a Kind";
+            case STRAIGHT -> "Straight";
+            case FLUSH -> "Flush";
+            case FULL_HOUSE -> "Full House";
+            case FOUR_OF_A_KIND -> "Four of a Kind";
+            case STRAIGHT_FLUSH -> "Straight Flush";
+        };
     }
     
     /**
      * Converts a numeric rank value to a card rank name.
      */
     protected String getRankName(int rankValue) {
-        switch (rankValue) {
-            case 14: return "Ace";
-            case 13: return "King";
-            case 12: return "Queen";
-            case 11: return "Jack";
-            case 10: return "10";
-            case 9: return "9";
-            case 8: return "8";
-            case 7: return "7";
-            case 6: return "6";
-            case 5: return "5";
-            case 4: return "4";
-            case 3: return "3";
-            case 2: return "2";
-            default: return String.valueOf(rankValue);
-        }
+        return switch (rankValue)
+        {
+            case 14 -> "Ace";
+            case 13 -> "King";
+            case 12 -> "Queen";
+            case 11 -> "Jack";
+            case 10 -> "10";
+            case 9 -> "9";
+            case 8 -> "8";
+            case 7 -> "7";
+            case 6 -> "6";
+            case 5 -> "5";
+            case 4 -> "4";
+            case 3 -> "3";
+            case 2 -> "2";
+            default -> String.valueOf(rankValue);
+        };
     }
 
     /**
@@ -1779,16 +1641,16 @@ protected void renderCommunityCards(float cx, float cy,
             float centerY = y + CARD_HEIGHT / 2f;
             float symbolSize = 20f;
             
-            float[] suitColor;
-            switch (card.suit) {
-                case DIAMONDS: suitColor = GL_COLOR_DIAMONDS; break;
-                case HEARTS: suitColor = GL_COLOR_HEARTS; break;
-                case SPADES: suitColor = GL_COLOR_SPADES; break;
-                default: suitColor = GL_COLOR_CLUBS; break;
-            }
+            float[] suitColor = switch (card.suit())
+            {
+                case DIAMONDS -> GL_COLOR_DIAMONDS;
+                case HEARTS -> GL_COLOR_HEARTS;
+                case SPADES -> GL_COLOR_SPADES;
+                default -> GL_COLOR_CLUBS;
+            };
             GL11.glColor4f(suitColor[0], suitColor[1], suitColor[2], alphaMult);
             
-            switch (card.suit) {
+            switch (card.suit()) {
                 case DIAMONDS: renderDiamond(centerX, centerY, symbolSize); break;
                 case HEARTS: renderHeart(centerX, centerY, symbolSize); break;
                 case SPADES: renderSpade(centerX, centerY, symbolSize); break;
@@ -2013,107 +1875,6 @@ protected void renderCommunityCards(float cx, float cy,
         GL11.glEnd();
     }
     
-    /**
-     * Renders rank as a visual indicator (colored shape) in the corner.
-     * Face cards get distinctive shapes, number cards get dots.
-     */
-    protected void renderRankIndicator(float x, float y, PokerGame.PokerGameLogic.Rank rank, 
-            Color suitColor, float alphaMult) {
-        float size = 14f;
-        
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        
-        // Background
-        GL11.glColor4f(0.15f, 0.15f, 0.15f, alphaMult);
-        GL11.glBegin(GL11.GL_POLYGON);
-        GL11.glVertex2f(x, y);
-        GL11.glVertex2f(x + size, y);
-        GL11.glVertex2f(x + size, y + size);
-        GL11.glVertex2f(x, y + size);
-        GL11.glEnd();
-        
-        // Suit-colored indicator based on rank type
-        GL11.glColor4f(suitColor.getRed()/255f, suitColor.getGreen()/255f, 
-            suitColor.getBlue()/255f, alphaMult);
-        
-        int rankValue = rank.ordinal(); // 0=Two, 12=Ace
-        
-        if (rankValue >= 10) {
-            // Face cards (J, Q, K, A) - gold border with suit color center
-            GL11.glColor4f(1f, 0.85f, 0f, alphaMult); // Gold
-            GL11.glBegin(GL11.GL_LINE_LOOP);
-            GL11.glVertex2f(x + 1, y + 1);
-            GL11.glVertex2f(x + size - 1, y + 1);
-            GL11.glVertex2f(x + size - 1, y + size - 1);
-            GL11.glVertex2f(x + 1, y + size - 1);
-            GL11.glEnd();
-            
-            // Suit color center
-            GL11.glColor4f(suitColor.getRed()/255f, suitColor.getGreen()/255f, 
-                suitColor.getBlue()/255f, alphaMult);
-            GL11.glBegin(GL11.GL_POLYGON);
-            GL11.glVertex2f(x + 3, y + 3);
-            GL11.glVertex2f(x + size - 3, y + 3);
-            GL11.glVertex2f(x + size - 3, y + size - 3);
-            GL11.glVertex2f(x + 3, y + size - 3);
-            GL11.glEnd();
-            
-            // White center dot for distinction
-            GL11.glColor4f(1f, 1f, 1f, alphaMult);
-            drawCircle(x + size/2, y + size/2, 2f, 8);
-        } else {
-            // Number cards - dots indicating value
-            int dots = Math.min(rankValue + 2, 10); // 2-10
-            drawRankDots(x + size/2, y + size/2, dots, 3f);
-        }
-        
-        GL11.glColor4f(1f, 1f, 1f, 1f);
-    }
-    
-    /**
-     * Draws dots to indicate card rank value.
-     */
-    protected void drawRankDots(float cx, float cy, int count, float radius) {
-        if (count <= 4) {
-            // Single row
-            float startX = cx - (count - 1) * radius * 0.8f;
-            for (int i = 0; i < count; i++) {
-                drawCircle(startX + i * radius * 1.6f, cy, radius * 0.4f, 8);
-            }
-        } else {
-            // Two rows
-            int topRow = count / 2;
-            int bottomRow = count - topRow;
-            float startY = cy - radius * 0.6f;
-            
-            float startX = cx - (topRow - 1) * radius * 0.6f;
-            for (int i = 0; i < topRow; i++) {
-                drawCircle(startX + i * radius * 1.2f, startY, radius * 0.35f, 8);
-            }
-            
-            startX = cx - (bottomRow - 1) * radius * 0.6f;
-            for (int i = 0; i < bottomRow; i++) {
-                drawCircle(startX + i * radius * 1.2f, startY + radius * 1.2f, radius * 0.35f, 8);
-            }
-        }
-    }
-    
-    /**
-     * Gets a color representing the card rank for visual indication.
-     */
-    protected Color getRankColor(PokerGame.PokerGameLogic.Rank rank) {
-        return switch (rank) {
-            case ACE -> COLOR_RANK_ACE;
-            case KING -> COLOR_RANK_KING;
-            case QUEEN -> COLOR_RANK_QUEEN;
-            case JACK -> COLOR_RANK_JACK;
-            case TEN -> COLOR_RANK_TEN;
-            default -> COLOR_RANK_LOW;
-        };
-    }
-    
     protected Color getSuitColor(PokerGame.PokerGameLogic.Suit suit) {
         return switch (suit) {
             case SPADES -> COLOR_SPADES;
@@ -2256,7 +2017,6 @@ public void updateGameState(PokerGame game) {
     
     /**
      * Processes input events for button clicks and keyboard shortcuts.
-     * 
      * INPUT PRIORITY:
      * 1. Escape key - dismiss dialog
      * 2. Button clicks - check each button's isChecked()

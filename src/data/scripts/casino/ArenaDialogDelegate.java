@@ -117,15 +117,7 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate {
                 }
             }
             
-            @Override
-            public void onAddBetToChampion(int championIndex, int amount) {
-                pendingChampionIndex = championIndex;
-                pendingBetAmount = amount;
-                if (callbacks != null) {
-                    callbacks.dismissDialog();
-                }
-            }
-            
+
             @Override
             public void onSuspend() {
                 pendingSuspend = true;

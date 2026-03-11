@@ -944,7 +944,7 @@ mem.unset("$ipc_suspended_game_type");
         StringBuilder cardText = new StringBuilder();
         for (int i = 0; i < cards.size(); i++) {
             PokerGameLogic.Card c = cards.get(i);
-            Color suitColor = switch (c.suit) {
+            Color suitColor = switch (c.suit()) {
                 case HEARTS -> Color.RED;
                 case DIAMONDS -> Color.BLUE;
                 case CLUBS -> Color.GREEN;
@@ -971,7 +971,7 @@ mem.unset("$ipc_suspended_game_type");
 
         for (int i = 0; i < cards.size(); i++) {
             PokerGameLogic.Card c = cards.get(i);
-            Color suitColor = switch (c.suit) {
+            Color suitColor = switch (c.suit()) {
                 case HEARTS -> Color.RED;
                 case DIAMONDS -> Color.BLUE;
                 case CLUBS -> Color.GREEN;

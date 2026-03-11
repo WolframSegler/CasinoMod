@@ -917,6 +917,15 @@ private boolean simulateArenaStep() {
         
         activeArena = new SpiralAbyssArena();
         arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
+        
+        // DEBUG: Log generated combatants
+        Global.getLogger(this.getClass()).info("=== NEW ARENA MATCH ===");
+        Global.getLogger(this.getClass()).info("Generated " + arenaCombatants.size() + " combatants:");
+        for (int i = 0; i < arenaCombatants.size(); i++) {
+            SpiralAbyssArena.SpiralGladiator g = arenaCombatants.get(i);
+            Global.getLogger(this.getClass()).info("  [" + i + "] " + g.fullName + " (" + g.hullId + ") HP:" + g.hp + "/" + g.maxHp);
+        }
+        
         chosenChampion = null;
         opponentsDefeated = 0;
         currentRound = 0;
@@ -1147,6 +1156,15 @@ private boolean simulateArenaStep() {
         
         activeArena = new SpiralAbyssArena();
         arenaCombatants = activeArena.generateCombatants(new CasinoGachaManager());
+        
+        // DEBUG: Log generated combatants
+        Global.getLogger(this.getClass()).info("=== NEW ARENA MATCH (startNewArenaMatch) ===");
+        Global.getLogger(this.getClass()).info("Generated " + arenaCombatants.size() + " combatants:");
+        for (int i = 0; i < arenaCombatants.size(); i++) {
+            SpiralAbyssArena.SpiralGladiator g = arenaCombatants.get(i);
+            Global.getLogger(this.getClass()).info("  [" + i + "] " + g.fullName + " (" + g.hullId + ") HP:" + g.hp + "/" + g.maxHp);
+        }
+        
         chosenChampion = null;
         opponentsDefeated = 0;
         currentRound = 0;

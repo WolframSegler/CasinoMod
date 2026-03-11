@@ -4,6 +4,8 @@
 - Fixed incorrect Poker bet amount display for both players
 - Fixed Arena round number not updating when using "Skip to End"
 - Fixed unfair attack distribution in Arena
+- Added HP bar for arena ships.
+- Improved Arena HP bar and dead-ship sprite visibility.
 
 ## Version 1.1.0
 - Added visual UI panels for Arena and Poker games with custom rendering
