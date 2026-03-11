@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 1.2.0
+- Fixed incorrect bet amount display for both players in Poker UI
+- Fixed opponent's current bet showing wrong value after AI raises
+- Fixed Arena round number not updating when using "Skip to End"
+- Fixed unfair attack distribution in Arena - ships now take turns evenly using minimum attack count selection
+
 ## Version 1.1.0
 - Added visual UI panels for Arena and Poker games with custom rendering
 - Added ship sprites and battle log visualization in Arena UI

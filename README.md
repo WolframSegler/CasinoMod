@@ -2,7 +2,7 @@
 
 A Starsector mod adding a casino experience with poker, gacha, and arena betting.
 
-**Version:** 1.1.0  
+**Version:** 1.2.0  
 **Game Version:** Starsector 0.98a-RC7
 
 ## Features
