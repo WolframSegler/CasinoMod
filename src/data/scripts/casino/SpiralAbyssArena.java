@@ -67,6 +67,7 @@ public class SpiralAbyssArena {
         public boolean isDead = false;
         public int kills = 0;
         public int turnsSurvived = 0;
+        public int totalAttacks = 0;
         public float baseOdds;   // Base betting odds from perks (e.g., 1:5.0)
         public int finalPosition = -1;  // Final position: 0 = winner, 1 = 2nd place, etc. -1 = not set
         public SpiralGladiator retaliateTarget = null;
@@ -289,78 +290,56 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
     public List<String> simulateStep(List<SpiralGladiator> combatants, int currentRound) {
         List<String> log = new ArrayList<>();
         
-        // Filter for ships that aren't scrap metal yet
         List<SpiralGladiator> alive = new ArrayList<>();
         for (SpiralGladiator g : combatants) if (!g.isDead) alive.add(g);
         
-        if (alive.size() < 2) return log; // Match is over
+        if (alive.size() < 2) return log;
 
-        // Process multiple attacks in this step
-        // Calculate number of attacks based on action multiplier, but each ship can only attack once per round
-        int baseAttacks = alive.size();
-        int attacksThisStep = Math.max(baseAttacks, (int)(baseAttacks * CasinoConfig.ARENA_ACTION_MULTIPLIER));
+        int attacksThisStep = Math.max(alive.size(), (int)(alive.size() * CasinoConfig.ARENA_ACTION_MULTIPLIER));
+        int attacksDoneThisStep = 0;
         
-        // Track attack counts per ship this step for fair distribution
-        Map<SpiralGladiator, Integer> attackCountThisStep = new HashMap<>();
-        for (SpiralGladiator g : combatants) {
-            if (!g.isDead) attackCountThisStep.put(g, 0);
-        }
-        
-        for (int i = 0; i < attacksThisStep; i++) {
-            // Only continue if we still have at least 2 ships alive
+        while (true) {
             List<SpiralGladiator> currentAlive = new ArrayList<>();
             for (SpiralGladiator g : combatants) if (!g.isDead) currentAlive.add(g);
-            if (currentAlive.size() < 2) break; // Stop if less than 2 ships remain
+            if (currentAlive.size() < 2) break;
             
-            // Update attack count map for newly dead ships
-            for (SpiralGladiator g : currentAlive) {
-                if (!attackCountThisStep.containsKey(g)) {
-                    attackCountThisStep.put(g, 0);
-                }
-            }
+            if (attacksDoneThisStep >= attacksThisStep) break;
             
-            // Find minimum attack count among alive ships
             int minAttacks = Integer.MAX_VALUE;
             for (SpiralGladiator g : currentAlive) {
-                int count = attackCountThisStep.getOrDefault(g, 0);
-                if (count < minAttacks) minAttacks = count;
+                if (g.totalAttacks < minAttacks) minAttacks = g.totalAttacks;
             }
             
-            // Only select from ships with minimum attack count (fair distribution)
             List<SpiralGladiator> eligibleAttackers = new ArrayList<>();
             for (SpiralGladiator g : currentAlive) {
-                if (attackCountThisStep.getOrDefault(g, 0) == minAttacks) {
+                if (g.totalAttacks == minAttacks) {
                     eligibleAttackers.add(g);
                 }
             }
             
-            // 2. Determine Attacker and Target
             SpiralGladiator attacker = eligibleAttackers.get(random.nextInt(eligibleAttackers.size()));
-            attackCountThisStep.put(attacker, attackCountThisStep.getOrDefault(attacker, 0) + 1);
+            attacker.totalAttacks++;
+            attacksDoneThisStep++;
             
             SpiralGladiator target = currentAlive.get(random.nextInt(currentAlive.size()));
             while (target == attacker) target = currentAlive.get(random.nextInt(currentAlive.size()));
             
-            // Retaliation Logic: If a ship was hit recently, it might focus its fire on the aggressor.
             if (attacker.retaliateTarget != null && !attacker.retaliateTarget.isDead) {
                 target = attacker.retaliateTarget;
                 attacker.isEnraged = true;
                 attacker.targetOfRage = attacker.retaliateTarget;
                 attacker.retaliateTarget = null;
             } else if (attacker.retaliateTarget != null) {
-                // Clear retaliation target if it's dead
                 attacker.retaliateTarget = null;
                 attacker.isEnraged = false;
                 attacker.targetOfRage = null;
             }
             
-            // Also check if the rage target is dead and clear it
             if (attacker.targetOfRage != null && attacker.targetOfRage.isDead) {
                 attacker.isEnraged = false;
                 attacker.targetOfRage = null;
             }
 
-            // 3. Final Attack Simulation
             float hitChance = 0.7f + attacker.agility - target.agility;
             if (random.nextFloat() < hitChance) {
                 boolean crit = random.nextFloat() < attacker.bravery;
@@ -369,17 +348,14 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                 
                 String flavor = crit ? getFlavor(CasinoConfig.ARENA_CRIT_FLAVOR_TEXTS, lastCritHistory) : getFlavor(CasinoConfig.ARENA_FLAVOR_TEXTS, lastAttackHistory);
                 
-                // LEARNERS: We use .replace() to inject variables into our flavor text templates.
                 log.add(flavor.replace("$attacker", attacker.shortName).replace("$target", target.shortName).replace("$dmg", ""+dmg));
                 
-                // Mark for retaliation
                 if (random.nextFloat() < target.bravery) {
                     target.retaliateTarget = attacker;
                     target.isEnraged = true;
                     target.targetOfRage = attacker;
                 }
                 
-                // Check for death
                 if (target.hp <= 0) {
                     target.isDead = true;
                     target.isEnraged = false;
@@ -389,7 +365,6 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
                     log.add("[KILL] " + kill.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
                 }
             } else {
-                // It's a miss!
                 String miss = getFlavor(CasinoConfig.ARENA_MISS_FLAVOR_TEXTS, lastMissHistory);
                 log.add(miss.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
             }
@@ -686,46 +661,33 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
             }
             
             int attacksThisRound = Math.max(alive.size(), (int)(alive.size() * CasinoConfig.ARENA_ACTION_MULTIPLIER));
-            
-            // Track attack counts per ship this round for fair distribution
-            Map<SpiralGladiator, Integer> attackCountThisRound = new HashMap<>();
-            for (SpiralGladiator g : alive) {
-                attackCountThisRound.put(g, 0);
-            }
-            
+            int attacksDoneThisRound = 0;
             List<SpiralGladiator> diedThisRound = new ArrayList<>();
             
-            for (int attack = 0; attack < attacksThisRound; attack++) {
+            while (true) {
                 alive.clear();
                 for (SpiralGladiator g : simCombatants) {
                     if (!g.isDead) alive.add(g);
                 }
                 if (alive.size() < 2) break;
                 
-                // Update attack count map for newly alive ships
-                for (SpiralGladiator g : alive) {
-                    if (!attackCountThisRound.containsKey(g)) {
-                        attackCountThisRound.put(g, 0);
-                    }
-                }
+                if (attacksDoneThisRound >= attacksThisRound) break;
                 
-                // Find minimum attack count among alive ships
                 int minAttacks = Integer.MAX_VALUE;
                 for (SpiralGladiator g : alive) {
-                    int count = attackCountThisRound.getOrDefault(g, 0);
-                    if (count < minAttacks) minAttacks = count;
+                    if (g.totalAttacks < minAttacks) minAttacks = g.totalAttacks;
                 }
                 
-                // Only select from ships with minimum attack count (fair distribution)
                 List<SpiralGladiator> eligibleAttackers = new ArrayList<>();
                 for (SpiralGladiator g : alive) {
-                    if (attackCountThisRound.getOrDefault(g, 0) == minAttacks) {
+                    if (g.totalAttacks == minAttacks) {
                         eligibleAttackers.add(g);
                     }
                 }
                 
                 SpiralGladiator attacker = eligibleAttackers.get(simRandom.nextInt(eligibleAttackers.size()));
-                attackCountThisRound.put(attacker, attackCountThisRound.getOrDefault(attacker, 0) + 1);
+                attacker.totalAttacks++;
+                attacksDoneThisRound++;
                 
                 SpiralGladiator target = alive.get(simRandom.nextInt(alive.size()));
                 while (target == attacker) {
