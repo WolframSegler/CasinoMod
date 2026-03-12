@@ -322,6 +322,8 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
         for (SpiralGladiator g : combatants) if (!g.isDead) alive.add(g);
         
         if (alive.size() < 2) return log;
+        
+        log.add("[ROUND] Round " + (currentRound + 1));
 
         int attacksThisStep = Math.max(alive.size(), (int)(alive.size() * CasinoConfig.ARENA_ACTION_MULTIPLIER));
         int attacksDoneThisStep = 0;

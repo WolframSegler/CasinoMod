@@ -46,7 +46,9 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                 return;
             }
             
-            if (rawEntry.startsWith("[KILL]")) {
+            if (rawEntry.startsWith("[ROUND]")) {
+                type = "ROUND";
+            } else if (rawEntry.startsWith("[KILL]")) {
                 type = "KILL";
                 String content = rawEntry.substring(6).trim();
                 parseKillLine(content, combatants);
@@ -234,10 +236,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         }
         
         boolean shouldSkipDeadAttacker(Map<String, Boolean> deadStatusMap) {
-            if (type.equals("HIT") || type.equals("MISS") || type.equals("KILL")) {
-                Boolean isDead = deadStatusMap.get(attackerHullId);
-                return isDead != null && isDead;
-            }
             return false;
         }
     }
@@ -1482,14 +1480,12 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
         updateHullIdDeadStatus();
         updateCachedParsedEntries();
         
-        List<ParsedLogEntry> filtered = new ArrayList<>();
+List<ParsedLogEntry> filtered = new ArrayList<>();
         for (ParsedLogEntry entry : cachedParsedEntries) {
-            // Skip entries with dead attackers (they can't attack if they're dead)
             if (entry.shouldSkipDeadAttacker(hullIdDeadStatus)) {
                 continue;
             }
-            // Skip ROUND, STATUS, and empty entries - these are obsolete with sprite-based log
-            if (entry.type.equals("ROUND") || entry.type.equals("STATUS") || entry.type.isEmpty()) {
+            if (entry.type.equals("STATUS") || entry.type.isEmpty()) {
                 continue;
             }
             filtered.add(entry);
@@ -1581,6 +1577,17 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin {
                     textX = textStartX_oneSprite;
 
                     drawBattleLogSpriteWithDead(entry.attackerHullId, rightSpriteX, spriteCenterY, LOG_SPRITE_SIZE, alphaMult, false);
+                }
+                case "ROUND" ->
+                {
+                    String roundText = entry.rawEntry;
+                    if (roundText.startsWith("[ROUND] "))
+                    {
+                        roundText = roundText.substring(8);
+                    }
+                    labelText = "-------- " + roundText + " --------";
+                    labelColor = new Color(180, 180, 200);
+                    textX = textStartX_oneSprite;
                 }
             }
 
