@@ -5,6 +5,8 @@ import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
 import java.util.*;
 
+import data.scripts.casino.Strings;
+
 public class SpiralAbyssArena {
     private final Random random = new Random();
     
@@ -258,41 +260,38 @@ public SpiralGladiator(String hullId, String prefix, String hullName, String aff
             float agility = base.agility;
             float bravery = 0.20f;
             
-            // Randomly assign a Prefix (Strong/Weak) which modifies stats.
-            int prefixIdx = random.nextInt(CasinoConfig.ARENA_PREFIX_STRONG_POS.size());
+            List<String> prefixPos = Strings.getList("arena_prefixes.positive");
+            List<String> prefixNeg = Strings.getList("arena_prefixes.negative");
+            int prefixIdx = random.nextInt(prefixPos.size());
             boolean posPrefix = random.nextBoolean();
-            String prefix = posPrefix ? CasinoConfig.ARENA_PREFIX_STRONG_POS.get(prefixIdx) : CasinoConfig.ARENA_PREFIX_STRONG_NEG.get(prefixIdx);
+            String prefix = posPrefix ? prefixPos.get(prefixIdx) : prefixNeg.get(prefixIdx);
             
-            // Apply prefix effects based on index
             float multP = posPrefix ? CasinoConfig.ARENA_PREFIX_MULT_STRONG : CasinoConfig.ARENA_PREFIX_MULT_WEAK;
-            if (prefixIdx == 0) hp = (int)(hp * multP);  // "Giant"/"Tiny" affects HP
-            else if (prefixIdx == 1) power = (int)(power * multP);  // "Strong"/"Weak" affects Power
-            else if (prefixIdx == 2) agility = posPrefix ? agility + CasinoConfig.ARENA_PREFIX_AGILITY_BONUS : Math.max(0, agility - CasinoConfig.ARENA_PREFIX_AGILITY_BONUS);  // "Swift"/"Clumsy" affects Agility
-            else bravery = posPrefix ? bravery + CasinoConfig.ARENA_PREFIX_BRAVERY_BONUS : Math.max(0, bravery - CasinoConfig.ARENA_PREFIX_BRAVERY_BONUS);  // "Fierce"/"Cowardly" affects Bravery
+            if (prefixIdx == 0) hp = (int)(hp * multP);
+            else if (prefixIdx == 1) power = (int)(power * multP);
+            else if (prefixIdx == 2) agility = posPrefix ? agility + CasinoConfig.ARENA_PREFIX_AGILITY_BONUS : Math.max(0, agility - CasinoConfig.ARENA_PREFIX_AGILITY_BONUS);
+            else bravery = posPrefix ? bravery + CasinoConfig.ARENA_PREFIX_BRAVERY_BONUS : Math.max(0, bravery - CasinoConfig.ARENA_PREFIX_BRAVERY_BONUS);
             
-            // Randomly assign an Affix for even more variety.
-            int affixIdx = random.nextInt(CasinoConfig.ARENA_AFFIX_POS.size());
+            List<String> affixPos = Strings.getList("arena_affixes.positive");
+            List<String> affixNeg = Strings.getList("arena_affixes.negative");
+            int affixIdx = random.nextInt(affixPos.size());
             boolean posAffix = random.nextBoolean();
-            String affix = posAffix ? CasinoConfig.ARENA_AFFIX_POS.get(affixIdx) : CasinoConfig.ARENA_AFFIX_NEG.get(affixIdx);
+            String affix = posAffix ? affixPos.get(affixIdx) : affixNeg.get(affixIdx);
             
-            // Validate that the affix is from the expected list (defensive programming)
             List<String> allValidAffixes = new ArrayList<>();
-            allValidAffixes.addAll(CasinoConfig.ARENA_AFFIX_POS);
-            allValidAffixes.addAll(CasinoConfig.ARENA_AFFIX_NEG);
+            allValidAffixes.addAll(affixPos);
+            allValidAffixes.addAll(affixNeg);
             
-            // If somehow we got an invalid affix, fall back to a default
             if (!allValidAffixes.contains(affix)) {
-                // Log error and use a default
                 Global.getLogger(this.getClass()).warn("Invalid affix detected: " + affix + ", falling back to default");
-                affix = posAffix ? CasinoConfig.ARENA_AFFIX_POS.get(0) : CasinoConfig.ARENA_AFFIX_NEG.get(0);
+                affix = posAffix ? affixPos.get(0) : affixNeg.get(0);
             }
             
-            // Apply affix effects based on index
             float multA = posAffix ? CasinoConfig.ARENA_AFFIX_MULT_STRONG : CasinoConfig.ARENA_AFFIX_MULT_WEAK;
-            if (affixIdx == 0) hp = (int)(hp * multA);  // "Large"/"Small" affects HP
-            else if (affixIdx == 1) power = (int)(power * multA);  // "of Might"/"of Frailty" affects Power
-            else if (affixIdx == 2) agility = posAffix ? agility + CasinoConfig.ARENA_AFFIX_AGILITY_BONUS : Math.max(0, agility - CasinoConfig.ARENA_AFFIX_AGILITY_BONUS);  // "of Speed"/"of Slowness" affects Agility
-            else bravery = posAffix ? bravery + CasinoConfig.ARENA_AFFIX_BRAVERY_BONUS : Math.max(0, bravery - CasinoConfig.ARENA_AFFIX_BRAVERY_BONUS);  // "of Courage"/"of Fear" affects Bravery
+            if (affixIdx == 0) hp = (int)(hp * multA);
+            else if (affixIdx == 1) power = (int)(power * multA);
+            else if (affixIdx == 2) agility = posAffix ? agility + CasinoConfig.ARENA_AFFIX_AGILITY_BONUS : Math.max(0, agility - CasinoConfig.ARENA_AFFIX_AGILITY_BONUS);
+            else bravery = posAffix ? bravery + CasinoConfig.ARENA_AFFIX_BRAVERY_BONUS : Math.max(0, bravery - CasinoConfig.ARENA_AFFIX_BRAVERY_BONUS);
             
             agility = Math.min(agility, CasinoConfig.ARENA_AGILITY_CAP);
             SpiralGladiator gladiator = new SpiralGladiator(hullId, prefix, spec.getHullName(), affix, hp, power, agility, bravery);
@@ -401,7 +400,7 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
                 
                 Global.getLogger(this.getClass()).info("  HIT! " + attacker.shortName + " -> " + target.shortName + " for " + dmg + (crit ? " (CRIT!)" : "") + " | HP: " + hpBefore + " -> " + target.hp);
                 
-                String flavor = crit ? getFlavor(CasinoConfig.ARENA_CRIT_FLAVOR_TEXTS, lastCritHistory) : getFlavor(CasinoConfig.ARENA_FLAVOR_TEXTS, lastAttackHistory);
+                String flavor = crit ? getFlavor(Strings.getList("arena_flavor.crit"), lastCritHistory) : getFlavor(Strings.getList("arena_flavor.attack"), lastAttackHistory);
                 
                 log.add(flavor.replace("$attacker", attacker.shortName).replace("$target", target.shortName).replace("$dmg", ""+dmg));
                 
@@ -417,12 +416,12 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
                     target.isEnraged = false;
                     target.targetOfRage = null;
                     attacker.kills++;
-                    String kill = getFlavor(CasinoConfig.ARENA_KILL_FLAVOR_TEXTS, lastKillHistory);
+                    String kill = getFlavor(Strings.getList("arena_flavor.kill"), lastKillHistory);
                     log.add("[KILL] " + kill.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
                     Global.getLogger(this.getClass()).info("  KILL! " + target.shortName + " destroyed by " + attacker.shortName);
                 }
 } else {
-                String miss = getFlavor(CasinoConfig.ARENA_MISS_FLAVOR_TEXTS, lastMissHistory);
+                String miss = getFlavor(Strings.getList("arena_flavor.miss"), lastMissHistory);
                 log.add(miss.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
                 Global.getLogger(this.getClass()).info("  MISS! " + attacker.shortName + " -> " + target.shortName);
             }
@@ -449,7 +448,7 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
                 Global.getLogger(this.getClass()).info("  SINGLE_SHIP_DAMAGE: " + target.shortName + " HP " + hpBefore + " -> " + target.hp + " (dmg=" + dmg + ")");
 
                 // Get random description from config
-                String description = getRandomDescription(CasinoConfig.ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS);
+                String description = getRandomDescription(Strings.getList("arena_damage.single"));
                 log.add("[EVENT] " + description.replace("$ship", target.shortName) + " (-" + dmg + " HP)");
 
                 // Check if ship died from event
@@ -467,7 +466,7 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
                 Collections.shuffle(shuffled, random);
 
                 // Get random description from config
-                String description = getRandomDescription(CasinoConfig.ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS);
+                String description = getRandomDescription(Strings.getList("arena_damage.multi"));
                 log.add("[EVENT] " + description);
                 Global.getLogger(this.getClass()).info("  MULTI_SHIP_DAMAGE: " + shipsToDamage + " ships affected");
 
@@ -811,15 +810,11 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
      * Calculates current odds for a specific ship based on simulation-based probabilities.
      * Uses position probabilities to account for consolation rewards, ensuring the
      * configured house edge is maintained regardless of consolation settings.
-     * 
      * The formula accounts for expected consolation payout:
      * expectedConsolation = Σ P_position × consolationBase × positionFactor
-     * 
      * fairOdds = (1 - houseEdge - expectedConsolation) / P_win
-     * 
      * This ensures that betting on all ships equally results in exactly the
      * configured house edge, while still providing meaningful consolation payouts.
-     * 
      * @param combatants The list of all combatants
      * @param shipIndex The index of the ship to calculate odds for
      * @param currentRound The current round number (0 = pre-battle)

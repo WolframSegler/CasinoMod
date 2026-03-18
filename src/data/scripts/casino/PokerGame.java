@@ -142,26 +142,13 @@ public static class PokerState {
     }
 
     /**
-     * Calculate big blind amount based on average stack size.
-     * Uses proportional sizing for balanced gameplay:
-     * - Small games (<= 5000): BB = stack / 80, rounded to nearest 10
-     * - Medium games (<= 20000): BB = stack / 120, rounded to nearest 10
-     * - Large games: BB = stack / 200, rounded to nearest 50
+     * Calculate big blind amount for 100 BB stack depth.
+     * BB = stack / 100, rounded to nearest 10, minimum 10.
      */
     private static int calculateBigBlind(int avgStack) {
-        if (avgStack <= 5000) {
-            // Small game: BB = 1/80 of stack, round to nearest 10
-            int calculatedBB = Math.max(10, avgStack / 80);
-            return (calculatedBB / 10) * 10; // Round down to nearest 10
-        } else if (avgStack <= 20000) {
-            // Medium game: BB = 1/120 of stack, round to nearest 10
-            int calculatedBB = Math.max(50, avgStack / 120);
-            return (calculatedBB / 10) * 10; // Round down to nearest 10
-        } else {
-            // Large game: BB = 1/200 of stack, round to nearest 50
-            int calculatedBB = Math.max(100, avgStack / 200);
-            return (calculatedBB / 50) * 50; // Round down to nearest 50
-        }
+        int calculatedBB = avgStack / 100;
+        calculatedBB = Math.max(10, calculatedBB);
+        return ((calculatedBB + 5) / 10) * 10;
     }
 
     public static class PokerGameLogic {
@@ -514,17 +501,7 @@ public static class PokerState {
         }
         
         public String getCurrentPersonality() {
-            // Return current AI personality for display/debugging
             return personality.name();
-        }
-        
-        public String getPersonalityDescription() {
-            return switch (personality)
-            {
-                case TIGHT -> Strings.get("poker_ai.tight_desc");
-                case AGGRESSIVE -> Strings.get("poker_ai.aggressive_desc");
-                case CALCULATED -> Strings.get("poker_ai.calculated_desc");
-            };
         }
         
         private AIResponse randomDeviation(float equity, float potOdds, int stackSize, int potSize) {
@@ -1828,11 +1805,6 @@ public static class PokerState {
     @SuppressWarnings("unused")
     public String getAIPersonality() {
         return ai.getCurrentPersonality();
-    }
-
-    @SuppressWarnings("unused")
-    public String getAIPersonalityDescription() {
-        return ai.getPersonalityDescription();
     }
 
     public void startNewHand() {

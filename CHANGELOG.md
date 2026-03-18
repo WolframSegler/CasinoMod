@@ -2,8 +2,8 @@
 
 ## Version 1.2.2
 - Merged WolframSegler's PR (version checker support, arena UI fixes, readme, and lots of behind-the-scene improvements). If you see less bugs and better performance, it's thanks to them!
-- Added arena battle log animation and improved poker UI after learning from the above. If you get new bugs and lagging, yeah it's me adding more vibe coded crap.
-- Externalized all UI strings to allow easier translation.
+- Added arena animation and improved poker UI after learning from the above. If you get new bugs and lagging, it's me adding more vibe coded crap.
+- Externalized all text strings to allow easier translation.
 - Adjusted poker game stack size and default BB values to better match each other.
 - More code cleanup.
 

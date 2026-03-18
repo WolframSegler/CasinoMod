@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import data.scripts.casino.Strings;
+
 /**
  * Core manager for VIP status, Stargem balance, credit facilities, and daily rewards.
  * Implements EveryFrameScript to run continuously in the background.
@@ -36,11 +38,11 @@ import java.util.Random;
  * month boundaries (e.g., Jan 31 to Feb 1 appears as day change from 31 to 1).
  * Always use clock.getTimestamp() which provides continuous time values.
  * AI_AGENT_NOTE: Credit ceiling formula
- * ceiling = BASE_DEBT_CEILING + (vipPurchases * VIP_PASS_CEILING_INCREASE) + (topupAmount * TOPUP_CEILING_MULTIPLIER)
+ * ceiling = BASE_DEBT_CEILING + (vipPurchases * CEILING_INCREASE_PER_VIP) + (playerLevel * OVERDRAFT_CEILING_LEVEL_MULTIPLIER)
  * Available credit = ceiling + balance (balance can be negative)
  * AI_AGENT_NOTE: Interest is applied daily to negative balances
- * VIP rate: 2% daily (CasinoConfig.VIP_DAILY_INTEREST_RATE)
- * Non-VIP rate: 5% daily (CasinoConfig.NORMAL_DAILY_INTEREST_RATE)
+ * VIP rate: 0.5% daily (CasinoConfig.VIP_DAILY_INTEREST_RATE)
+ * Non-VIP rate: 1% daily (CasinoConfig.NORMAL_DAILY_INTEREST_RATE)
  * Interest is subtracted from balance (makes negative balance more negative)
  * AI_AGENT_NOTE: Overdraft is VIP-only feature
  * Always check isOverdraftAvailable() before allowing negative balance transactions
@@ -306,13 +308,14 @@ if (currentDebt >= maxDebt) {
         Global.getSector().getCampaignUI().addMessage(rewardLine.toString(), Color.GREEN);
         
         Color balanceColor = newBalance >= 0 ? Color.GREEN : Color.RED;
-        String balanceLine = "Balance: " + newBalance + " Stargems (VIP: " + daysRemaining + " days)";
+        String balanceLine = Strings.format("notifications.balance_vip", newBalance, daysRemaining);
         Global.getSector().getCampaignUI().addMessage(balanceLine, balanceColor);
         
-        if (!CasinoConfig.VIP_ADS.isEmpty()) {
-            String ad = selectNonDuplicateAd();
+        List<String> vipAds = Strings.getList("vip_ads");
+        if (!vipAds.isEmpty()) {
+            String ad = selectNonDuplicateAd(vipAds);
             Global.getSector().getCampaignUI().addMessage(
-                "[Tachy-Impact VIP] " + ad,
+                Strings.format("notifications.vip_ad_prefix", ad),
                 Color.CYAN
             );
         }
@@ -705,33 +708,28 @@ if (currentDebt >= maxDebt) {
      * If all ads are in history (when total ads <= 4), history is cleared.
      * @return Selected ad message string
      */
-    private String selectNonDuplicateAd() {
+    private String selectNonDuplicateAd(List<String> vipAds) {
         @SuppressWarnings("unchecked")
         List<String> recentAds = (List<String>) Global.getSector().getPlayerMemoryWithoutUpdate().get(VIP_AD_HISTORY_KEY);
         if (recentAds == null) {
             recentAds = new ArrayList<>();
         }
 
-        // Create a copy of available ads and remove recently shown ones
-        List<String> availableAds = new ArrayList<>(CasinoConfig.VIP_ADS);
+        List<String> availableAds = new ArrayList<>(vipAds);
         availableAds.removeAll(recentAds);
 
-        // If no ads available (all are in history), clear history
         if (availableAds.isEmpty()) {
             recentAds.clear();
-            availableAds.addAll(CasinoConfig.VIP_ADS);
+            availableAds.addAll(vipAds);
         }
 
-        // Select random ad from available ones
         String selectedAd = availableAds.get(random.nextInt(availableAds.size()));
 
-        // Update history: add new ad and trim to last 4
         recentAds.add(selectedAd);
         while (recentAds.size() > 4) {
             recentAds.remove(0);
         }
 
-        // Store updated history
         Global.getSector().getPlayerMemoryWithoutUpdate().set(VIP_AD_HISTORY_KEY, recentAds);
 
         return selectedAd;

@@ -100,8 +100,13 @@ public class CasinoConfig {
     public static float ARENA_CHAOS_EVENT_CHANCE;
     public static float ARENA_SINGLE_SHIP_DAMAGE_PERCENT;
     public static float ARENA_MULTI_SHIP_DAMAGE_PERCENT;
-    public static final List<String> ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS = new ArrayList<>();
-    public static final List<String> ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS = new ArrayList<>();
+
+    // Arena - Battle Log Animation
+    public static float ARENA_LOG_LINE_DELAY;
+    public static float ARENA_SPRITE_NUDGE_AMOUNT;
+    public static float ARENA_SPRITE_NUDGE_DURATION;
+    public static float ARENA_HP_ANIM_DURATION;
+    public static int ARENA_FLASH_COUNT;
 
     // Credit Ceiling
     public static float MAX_DEBT_MULTIPLIER;
@@ -114,7 +119,6 @@ public class CasinoConfig {
     public static float STARGEM_EXCHANGE_RATE;
 
     // Dynamic Lists
-    public static final List<String> VIP_ADS = new ArrayList<>();
     public static final List<GemPackage> GEM_PACKAGES = new ArrayList<>();
 
     public record GemPackage(int gems, int cost)
@@ -130,20 +134,6 @@ public class CasinoConfig {
 
     public static final Map<HullSize, ArenaStat> ARENA_BASE_STATS = new HashMap<>();
 
-    // Flavor Text Lists
-    public static final List<String> ARENA_ATTACK_LINES = new ArrayList<>();
-    public static final List<String> ARENA_FLAVOR_TEXTS = ARENA_ATTACK_LINES;
-    public static final List<String> ARENA_MISS_LINES = new ArrayList<>();
-    public static final List<String> ARENA_MISS_FLAVOR_TEXTS = ARENA_MISS_LINES;
-    public static final List<String> ARENA_CRIT_LINES = new ArrayList<>();
-    public static final List<String> ARENA_CRIT_FLAVOR_TEXTS = ARENA_CRIT_LINES;
-    public static final List<String> ARENA_KILL_LINES = new ArrayList<>();
-    public static final List<String> ARENA_KILL_FLAVOR_TEXTS = ARENA_KILL_LINES;
-    public static final List<String> ARENA_PREFIX_STRONG_POS = new ArrayList<>();
-    public static final List<String> ARENA_PREFIX_STRONG_NEG = new ArrayList<>();
-    public static final List<String> ARENA_AFFIX_POS = new ArrayList<>();
-    public static final List<String> ARENA_AFFIX_NEG = new ArrayList<>();
-
     // Gacha Blacklist
     public static final Set<String> GACHA_SHIP_BLACKLIST_CSV = new HashSet<>();
 
@@ -154,8 +144,8 @@ public class CasinoConfig {
             // VIP settings
             VIP_DAILY_REWARD = settings.optInt("vipDailyReward", 100);
             VIP_PASS_DAYS = settings.optInt("vipPassDays", 30);
-            VIP_DAILY_INTEREST_RATE = (float) settings.optDouble("vipDailyInterestRate", 0.02);
-            NORMAL_DAILY_INTEREST_RATE = (float) settings.optDouble("normalDailyInterestRate", 0.05);
+            VIP_DAILY_INTEREST_RATE = (float) settings.optDouble("vipDailyInterestRate", 0.005);
+            NORMAL_DAILY_INTEREST_RATE = (float) settings.optDouble("normalDailyInterestRate", 0.01);
             BASE_DEBT_CEILING = settings.optInt("baseDebtCeiling", 5000);
             CEILING_INCREASE_PER_VIP = settings.optInt("ceilingIncreasePerVIP", 10000);
             VIP_PASS_COST = settings.optInt("vipPassCost", 100000);
@@ -239,6 +229,13 @@ public class CasinoConfig {
             ARENA_SINGLE_SHIP_DAMAGE_PERCENT = (float) settings.optDouble("arenaSingleShipDamagePercent", 0.15);
             ARENA_MULTI_SHIP_DAMAGE_PERCENT = (float) settings.optDouble("arenaMultiShipDamagePercent", 0.1);
 
+            // Arena battle log animation settings
+            ARENA_LOG_LINE_DELAY = (float) settings.optDouble("arenaLogLineDelay", 0.7f);
+            ARENA_SPRITE_NUDGE_AMOUNT = (float) settings.optDouble("arenaSpriteNudgeAmount", 12.0f);
+            ARENA_SPRITE_NUDGE_DURATION = (float) settings.optDouble("arenaSpriteNudgeDuration", 0.25f);
+            ARENA_HP_ANIM_DURATION = (float) settings.optDouble("arenaHpAnimDuration", 0.4f);
+            ARENA_FLASH_COUNT = settings.optInt("arenaFlashCount", 2);
+
             // Arena base stats from JSON
             if (settings.has("arenaBaseStats")) {
                 JSONObject baseStats = settings.getJSONObject("arenaBaseStats");
@@ -264,9 +261,6 @@ public class CasinoConfig {
             MARKET_SIZE_MIN_FOR_GENERAL_CASINO = settings.optInt("marketSizeMinForGeneralCasino", 3);
             STARGEM_EXCHANGE_RATE = (float) settings.optDouble("stargemExchangeRate", 1000.0);
 
-            // Load lists
-            loadStringList(settings, "vipAds", VIP_ADS);
-
             if (settings.has("gemPackages")) {
                 JSONArray packages = settings.getJSONArray("gemPackages");
                 GEM_PACKAGES.clear();
@@ -278,18 +272,6 @@ public class CasinoConfig {
 
             // Sync alias
             NON_VIP_DAILY_INTEREST_RATE = NORMAL_DAILY_INTEREST_RATE;
-
-            // Load flavor text lists
-            loadStringList(settings, "arenaAttackLines", ARENA_ATTACK_LINES);
-            loadStringList(settings, "arenaMissLines", ARENA_MISS_LINES);
-            loadStringList(settings, "arenaCritLines", ARENA_CRIT_LINES);
-            loadStringList(settings, "arenaKillLines", ARENA_KILL_LINES);
-            loadStringList(settings, "arenaPrefixStrongPos", ARENA_PREFIX_STRONG_POS);
-            loadStringList(settings, "arenaPrefixStrongNeg", ARENA_PREFIX_STRONG_NEG);
-            loadStringList(settings, "arenaAffixPos", ARENA_AFFIX_POS);
-            loadStringList(settings, "arenaAffixNeg", ARENA_AFFIX_NEG);
-            loadStringList(settings, "arenaSingleShipDamageDescriptions", ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS);
-            loadStringList(settings, "arenaMultiShipDamageDescriptions", ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS);
 
             log.info("Casino configuration loaded successfully");
 
@@ -319,72 +301,10 @@ public class CasinoConfig {
         }
     }
 
-    private static void loadStringList(JSONObject settings, String key, List<String> list) {
-        if (settings.has(key)) {
-            try {
-                JSONArray array = settings.getJSONArray(key);
-                list.clear();
-                for (int i = 0; i < array.length(); i++) {
-                    list.add(array.getString(i));
-                }
-            } catch (JSONException e) {
-                log.warn("Error loading " + key + ": " + e.getMessage());
-            }
-        }
-    }
-
     static {
         ARENA_BASE_STATS.put(HullSize.FRIGATE, new ArenaStat(80, 25, 0.35f));
         ARENA_BASE_STATS.put(HullSize.DESTROYER, new ArenaStat(120, 35, 0.25f));
         ARENA_BASE_STATS.put(HullSize.CRUISER, new ArenaStat(180, 50, 0.15f));
         ARENA_BASE_STATS.put(HullSize.CAPITAL_SHIP, new ArenaStat(250, 70, 0.10f));
-
-        ARENA_ATTACK_LINES.add("$attacker hits $target for $dmg damage!");
-        ARENA_ATTACK_LINES.add("$attacker strikes $target, dealing $dmg damage!");
-        ARENA_ATTACK_LINES.add("$attacker blasts $target for $dmg damage!");
-
-        ARENA_MISS_LINES.add("$attacker misses $target!");
-        ARENA_MISS_LINES.add("$attacker's shot goes wide of $target!");
-        ARENA_MISS_LINES.add("$target dodges $attacker's attack!");
-
-        ARENA_CRIT_LINES.add("$attacker CRITS $target for $dmg damage!");
-        ARENA_CRIT_LINES.add("$attacker lands a devastating blow on $target for $dmg damage!");
-        ARENA_CRIT_LINES.add("$attacker critically strikes $target for $dmg damage!");
-
-        ARENA_KILL_LINES.add("$attacker destroys $target!");
-        ARENA_KILL_LINES.add("$attacker annihilates $target!");
-        ARENA_KILL_LINES.add("$target is blown apart by $attacker!");
-
-        ARENA_PREFIX_STRONG_POS.add("Durable");
-        ARENA_PREFIX_STRONG_POS.add("Mightly");
-        ARENA_PREFIX_STRONG_POS.add("Swift");
-        ARENA_PREFIX_STRONG_POS.add("Fierce");
-
-        ARENA_PREFIX_STRONG_NEG.add("Brittle");
-        ARENA_PREFIX_STRONG_NEG.add("Feeble");
-        ARENA_PREFIX_STRONG_NEG.add("Sluggish");
-        ARENA_PREFIX_STRONG_NEG.add("Timid");
-
-        ARENA_AFFIX_POS.add("of Sturdiness");
-        ARENA_AFFIX_POS.add("of Strength");
-        ARENA_AFFIX_POS.add("of Speed");
-        ARENA_AFFIX_POS.add("of Courage");
-
-        ARENA_AFFIX_NEG.add("of Fragility");
-        ARENA_AFFIX_NEG.add("of Weakness");
-        ARENA_AFFIX_NEG.add("of Clumsiness");
-        ARENA_AFFIX_NEG.add("of Cowardice");
-
-        ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS.add("Maintenance accident damages $ship");
-        ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS.add("Asteroid impact hits $ship");
-        ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS.add("Micro-meteorite swarm strikes $ship");
-        ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS.add("Reactor fluctuation damages $ship");
-        ARENA_SINGLE_SHIP_DAMAGE_DESCRIPTIONS.add("Structural fatigue weakens $ship");
-
-        ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS.add("Collision between ships causes damage");
-        ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS.add("Explosive debris strikes the arena");
-        ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS.add("Chain reaction explosion spreads across ships");
-        ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS.add("Electromagnetic pulse damages multiple systems");
-        ARENA_MULTI_SHIP_DAMAGE_DESCRIPTIONS.add("Arena hazard activation damages combatants");
     }
 }

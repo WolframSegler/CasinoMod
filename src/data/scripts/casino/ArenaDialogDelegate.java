@@ -187,6 +187,10 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate {
             return;
         }
         
+        if (arenaPanel != null) {
+            arenaPanel.advance(amount);
+        }
+        
         if (battleEnded && arenaPanel != null && arenaPanel.isReadyToClose()) {
             if (callbacks != null) {
                 callbacks.getPanelFader().fadeOut();
@@ -196,6 +200,10 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate {
                 }
             }
         }
+    }
+    
+    public ArenaPanelUI getArenaPanel() {
+        return arenaPanel;
     }
     
     public void reportDismissed(int option) {

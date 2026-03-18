@@ -167,8 +167,8 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
             }
         }
 
-        int minRequiredGems = CasinoConfig.POKER_BIG_BLIND;
         int minStackSize = CasinoConfig.POKER_STACK_SIZES.length > 0 ? CasinoConfig.POKER_STACK_SIZES[0] : 1000;
+        int minRequiredGems = minStackSize / 100;
 
         if (availableCredit <= 0) {
             main.textPanel.addPara(Strings.format("poker.credit_exhausted", minStackSize), Color.RED);
@@ -286,7 +286,7 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
 private void startGameWithStack(int stackSize) {
         CasinoVIPManager.addToBalance(-stackSize);
         
-        int opponentStack = Math.max(CasinoConfig.POKER_DEFAULT_OPPONENT_STACK, stackSize);
+        int opponentStack = stackSize;
         
         pokerGame = new PokerGame(stackSize, opponentStack, CasinoConfig.POKER_SMALL_BLIND, CasinoConfig.POKER_BIG_BLIND);
         
@@ -327,7 +327,7 @@ private String formatBB(int amount, int bigBlind) {
         PokerGame.PokerState state = pokerGame.getState();
         
         // Only auto-end if pot is 0 AND not in showdown (player can still be all-in with 0 stack but hand ongoing)
-        if (state.playerStack < CasinoConfig.POKER_BIG_BLIND && state.pot == 0 && state.round != PokerGame.Round.SHOWDOWN) {
+        if (state.playerStack < state.bigBlind && state.pot == 0 && state.round != PokerGame.Round.SHOWDOWN) {
             endHand();
             return;
         }
@@ -1139,7 +1139,7 @@ private void endHand() {
         // Note: Pot has already been awarded in determineWinner(), so state.pot is 0 here
         // The win message is already displayed there with the correct amount
 
-        if (state.playerStack < CasinoConfig.POKER_BIG_BLIND) {
+        if (state.playerStack < state.bigBlind) {
             main.getTextPanel().addPara(Strings.get("poker_result.out_of_chips"), Color.RED);
             returnStacks();
             clearSuspendedGameMemory();
@@ -1147,7 +1147,7 @@ private void endHand() {
             handsPlayedThisSession = 0;
             main.getOptions().clearOptions();
             main.getOptions().addOption(Strings.get("poker_result.leave_table"), "back_menu");
-        } else if (state.opponentStack < CasinoConfig.POKER_BIG_BLIND) {
+        } else if (state.opponentStack < state.bigBlind) {
             main.getTextPanel().addPara(Strings.get("poker_result.opponent_out"), Color.GREEN);
             returnStacks();
             clearSuspendedGameMemory();

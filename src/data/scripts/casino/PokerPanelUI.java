@@ -1060,7 +1060,8 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
                 resultText = Strings.format("poker_panel.opponent_wins_stargems", potWon);
                 resultColor = COLOR_OPPONENT;
             } else {
-                resultText = Strings.format("poker_panel.split_pot_each", potWon / 2);
+                int playerShare = (potWon / 2) + (potWon % 2);
+                resultText = Strings.format("poker_panel.split_pot_each", playerShare);
                 resultColor = Color.YELLOW;
             }
         }

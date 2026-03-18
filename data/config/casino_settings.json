@@ -65,6 +65,13 @@
     "arenaChaosEventChance": 0.1,
     "arenaSingleShipDamagePercent": 0.15,
     "arenaMultiShipDamagePercent": 0.10,
+
+    "arenaLogLineDelay": 1.0,
+    "arenaSpriteNudgeAmount": 12.0,
+    "arenaSpriteNudgeDuration": 0.25,
+    "arenaHpAnimDuration": 0.4,
+    "arenaFlashCount": 2,
+
     "arenaBaseStats": {
         "frigate": { "hp": 80, "power": 25, "agility": 0.35 },
         "destroyer": { "hp": 120, "power": 35, "agility": 0.25 },
@@ -80,20 +87,6 @@
 
     "stargemExchangeRate": 500,
 
-    "vipAds": [
-        "May your journey lead you starward.",
-        "Tech Spacers Save The Sector.",
-        "The warp currents align for you today.",
-        "How about we explore the area ahead of us later?",
-        "Thank you for supporting Tachy-Impact.",
-        "Don't use AI Cores as emergency food!",
-        "To the Stars and the Abyss.",
-        "Follow the path of the Trailblazer.",
-        "Hegemony rules are made to be broken!",
-        "Astral blessings upon you.",
-        "This notice can be toggled to monthly in Casino finances."
-    ],
-
     "gemPackages": [
         { "gems": 60, "cost": 15000 },
         { "gems": 300, "cost": 60000 },
@@ -101,82 +94,5 @@
         { "gems": 1980, "cost": 350000 },
         { "gems": 3280, "cost": 580000 },
         { "gems": 6480, "cost": 1150000 }
-    ],
-
-    "arenaAttackLines": [
-        "$attacker attacks $target for $dmg damage!",
-        "$attacker sends $target flying with $dmg damage!",
-        "$attacker unleashes $dmg damage upon $target!",
-        "$attacker rams into $target for $dmg damage!",
-        "$attacker blackmails $target for $dmg emotional damage!",
-        "$attacker preemptively strikes $target for $dmg damage!"
-    ],
-    "arenaMissLines": [
-        "$target:'Too slow!' ($attacker missed)",
-        "$target:'Frame perfect!' (Evaded $attacker)",
-        "$target:'Is that all?' ($attacker missed)",
-        "$target:'Think you can aim?' (Evaded $attacker)",
-        "$target:'Too graceful for you?' ($attacker missed)",
-        "$target:'The stars favor me today.' (Evaded $attacker)"
-    ],
-    "arenaCritLines": [
-        "$attacker:'Nowhere to hide!' ($dmg CRIT damage to $target!)",
-        "$attacker:'Witness the stars shatter!' ($dmg CRIT damage to $target!)",
-        "$attacker:'Destiny compels!' ($dmg CRIT damage to $target!)",
-        "$attacker:'Time for... retribution!' ($dmg CRIT damage to $target!)",
-        "$attacker:'Rules are made to be broken!' ($dmg CRIT damage to $target!)",
-        "$attacker:'Witness true power!' ($dmg CRIT damage to $target!)"
-    ],
-    "arenaKillLines": [
-        "$attacker makes $target disappear among a sea of butterflies!",
-        "$attacker: 'Your journey ends here, $target'!",
-        "$attacker sends $target to the stars...permanently.",
-        "$attacker eliminates $target from the Spiral Abyss!",
-        "$attacker:'The dead...will return!' (But $target won't)",
-        "$attacker: 'Into the void with you, $target!'"
-    ],
-    "arenaPrefixStrongPos": [
-        "Durable",
-        "Mightly",
-        "Swift",
-        "Fierce"
-    ],
-    "arenaPrefixStrongNeg": [
-        "Brittle",
-        "Feeble",
-        "Sluggish",
-        "Timid"
-    ],
-    "arenaAffixPos": [
-        "of Sturdiness",
-        "of Strength",
-        "of Speed",
-        "of Courage"
-    ],
-    "arenaAffixNeg": [
-        "of Fragility",
-        "of Weakness",
-        "of Clumsiness",
-        "of Cowardice"
-    ],
-    "arenaSingleShipDamageDescriptions": [
-        "Maintenance accident damages $ship",
-        "Asteroid impact hits $ship",
-        "Micro-meteorite swarm strikes $ship",
-        "Reactor fluctuation damages $ship",
-        "Structural fatigue weakens $ship",
-        "Fuel line rupture damages $ship",
-        "Coolant leak affects $ship",
-        "Power surge overloads $ship systems"
-    ],
-    "arenaMultiShipDamageDescriptions": [
-        "Collision between ships causes damage",
-        "Explosive debris strikes the arena",
-        "Chain reaction explosion spreads across ships",
-        "Electromagnetic pulse damages multiple systems",
-        "Arena hazard activation damages combatants",
-        "Shockwave from explosion hits multiple ships",
-        "Friendly fire incident damages several ships",
-        "Environmental hazard affects the arena"
     ]
 }

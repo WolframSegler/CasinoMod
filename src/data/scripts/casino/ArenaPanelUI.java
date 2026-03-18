@@ -326,12 +326,12 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     
     protected boolean isPrefixPositive(String prefix) {
         if (prefix == null) return true;
-        return CasinoConfig.ARENA_PREFIX_STRONG_POS.contains(prefix);
+        return Strings.getList("arena_prefixes.positive").contains(prefix);
     }
     
     protected boolean isAffixPositive(String affix) {
         if (affix == null) return true;
-        return CasinoConfig.ARENA_AFFIX_POS.contains(affix);
+        return Strings.getList("arena_affixes.positive").contains(affix);
     }
     
     protected Color getPrefixColor(String prefix) {
@@ -449,6 +449,32 @@ protected LabelAPI instructionLabel;
     protected int[] lastShipBetCount = new int[5];
     protected String[] lastShipHullIds = new String[5];
     protected boolean shipStateInitialized = false;
+
+    // Battle Log Animation State
+    protected float logAnimationTimer = 0f;
+    protected int displayedLogIndex = 0;
+    protected boolean isAnimating = false;
+    protected List<ParsedLogEntry> pendingEntries = new ArrayList<>();
+    protected boolean skipRequested = false;
+
+    // Sprite Animation State (sidebar ships)
+    protected String currentAttackerHullId = null;
+    protected String currentTargetHullId = null;
+    protected float spriteAnimTimer = 0f;
+    protected float attackerNudgeOffset = 0f;
+    protected boolean targetFlashState = false;
+
+    // HP Animation State
+    protected int[] animatedHp = new int[5];
+    protected int[] targetAnimatedHp = new int[5];
+    protected int[] prevAnimatedHp = new int[5];
+    protected float[] hpAnimTimer = new float[5];
+    protected boolean[] hpAnimating = new boolean[5];
+
+    // Kill Tracking
+    protected Set<String> killedHullIds = new HashSet<>();
+    protected Set<String> fadeOutHullIds = new HashSet<>();
+    protected float[] fadeOutAlpha = new float[5];
     
     protected int getTotalBetOnShip(int shipIndex) {
         if (bets == null || combatants == null || shipIndex < 0 || shipIndex >= combatants.size()) {
@@ -569,7 +595,202 @@ protected LabelAPI instructionLabel;
     public void positionChanged(PositionAPI position) {
         this.pos = position;
     }
-    
+
+    public void advance(float amount) {
+        if (isAnimating && !pendingEntries.isEmpty()) {
+            logAnimationTimer += amount;
+
+            boolean shouldAdvance = skipRequested || logAnimationTimer >= CasinoConfig.ARENA_LOG_LINE_DELAY;
+
+            if (shouldAdvance) {
+                logAnimationTimer = 0f;
+
+                if (displayedLogIndex < pendingEntries.size()) {
+                    ParsedLogEntry current = pendingEntries.get(displayedLogIndex);
+                    triggerEntryAnimation(current);
+                    displayedLogIndex++;
+                }
+
+                if (skipRequested) {
+                    skipRequested = false;
+                    while (displayedLogIndex < pendingEntries.size()) {
+                        ParsedLogEntry current = pendingEntries.get(displayedLogIndex);
+                        triggerEntryAnimation(current);
+                        displayedLogIndex++;
+                    }
+                }
+
+                if (displayedLogIndex >= pendingEntries.size()) {
+                    isAnimating = false;
+                    finalizeAnimationState();
+                }
+            }
+        }
+
+        updateSpriteAnimations(amount);
+        updateHpAnimations(amount);
+    }
+
+    protected void updateSpriteAnimations(float amount) {
+        if (spriteAnimTimer > 0) {
+            spriteAnimTimer -= amount;
+            float progress = 1f - (spriteAnimTimer / CasinoConfig.ARENA_SPRITE_NUDGE_DURATION);
+            attackerNudgeOffset = (float) Math.sin(progress * Math.PI) * CasinoConfig.ARENA_SPRITE_NUDGE_AMOUNT;
+            
+            // Flash is derived from nudge timer - flash twice during the animation
+            // Using sine wave: positive = flash on, negative = flash off
+            float flashPhase = (float) Math.sin(progress * Math.PI * 4); // 2 full cycles
+            targetFlashState = flashPhase > 0;
+        } else {
+            attackerNudgeOffset = 0f;
+            targetFlashState = false;
+        }
+
+        for (int i = 0; i < fadeOutAlpha.length; i++) {
+            if (fadeOutAlpha[i] > 0.5f) {
+                fadeOutAlpha[i] = Math.max(0.5f, fadeOutAlpha[i] - amount * 2f);
+            }
+        }
+    }
+
+    protected void updateHpAnimations(float amount) {
+        for (int i = 0; i < hpAnimTimer.length; i++) {
+            if (hpAnimTimer[i] > 0) {
+                hpAnimTimer[i] -= amount;
+                float progress = 1f - (hpAnimTimer[i] / CasinoConfig.ARENA_HP_ANIM_DURATION);
+                int startHp = prevAnimatedHp[i];
+                int finalHp = targetAnimatedHp[i];
+                animatedHp[i] = (int) (startHp + (finalHp - startHp) * Math.min(1f, progress));
+            }
+            hpAnimating[i] = hpAnimTimer[i] > 0;
+        }
+    }
+
+    protected void triggerEntryAnimation(ParsedLogEntry entry) {
+        switch (entry.type) {
+            case "HIT" -> {
+                currentAttackerHullId = entry.attackerHullId;
+                currentTargetHullId = entry.targetHullId;
+                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                animateHpReduction(entry.targetHullId, entry.damage);
+            }
+            case "MISS" -> {
+                currentAttackerHullId = entry.attackerHullId;
+                currentTargetHullId = entry.targetHullId;
+                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+            }
+            case "KILL" -> {
+                currentAttackerHullId = entry.attackerHullId;
+                currentTargetHullId = entry.targetHullId;
+                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+
+                killedHullIds.add(entry.targetHullId);
+                fadeOutHullIds.add(entry.targetHullId);
+                int targetIdx = findCombatantIndex(entry.targetHullId);
+                if (targetIdx >= 0) {
+                    fadeOutAlpha[targetIdx] = 1.0f;
+                }
+            }
+            case "EVENT", "EVENT_HIT" -> {
+                currentAttackerHullId = entry.attackerHullId;
+                currentTargetHullId = null;
+                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                if (entry.damage > 0) {
+                    animateHpReduction(entry.attackerHullId, entry.damage);
+                }
+            }
+            case "ROUND" -> {
+                currentAttackerHullId = null;
+                currentTargetHullId = null;
+            }
+        }
+    }
+
+    protected void animateHpReduction(String hullId, int damage) {
+        int idx = findCombatantIndex(hullId);
+        if (idx >= 0 && idx < hpAnimTimer.length) {
+            prevAnimatedHp[idx] = animatedHp[idx];
+            targetAnimatedHp[idx] = Math.max(0, animatedHp[idx] - damage);
+            hpAnimTimer[idx] = CasinoConfig.ARENA_HP_ANIM_DURATION;
+        }
+    }
+
+    protected int findCombatantIndex(String hullId) {
+        if (combatants == null || hullId == null) return -1;
+        for (int i = 0; i < combatants.size(); i++) {
+            if (hullId.equals(combatants.get(i).hullId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    protected void finalizeAnimationState() {
+        if (combatants != null) {
+            for (int i = 0; i < combatants.size(); i++) {
+                animatedHp[i] = combatants.get(i).hp;
+                targetAnimatedHp[i] = combatants.get(i).hp;
+                if (combatants.get(i).isDead) {
+                    killedHullIds.add(combatants.get(i).hullId);
+                    fadeOutHullIds.add(combatants.get(i).hullId);
+                    fadeOutAlpha[i] = 0.5f;
+                }
+            }
+        }
+    }
+
+    public void startLogAnimation(List<String> newLogEntries) {
+        pendingEntries.clear();
+        if (newLogEntries != null) {
+            for (String entry : newLogEntries) {
+                ParsedLogEntry parsed = new ParsedLogEntry(entry);
+                parsed.parse(combatants);
+                if (!parsed.type.equals("STATUS") && !parsed.type.isEmpty()) {
+                    pendingEntries.add(parsed);
+                }
+            }
+        }
+
+        Map<String, Integer> totalDamagePerShip = new HashMap<>();
+        for (ParsedLogEntry entry : pendingEntries) {
+            if (entry.damage > 0) {
+                if ("HIT".equals(entry.type) && entry.targetHullId != null) {
+                    totalDamagePerShip.merge(entry.targetHullId, entry.damage, Integer::sum);
+                } else if (("EVENT".equals(entry.type) || "EVENT_HIT".equals(entry.type)) && entry.attackerHullId != null) {
+                    totalDamagePerShip.merge(entry.attackerHullId, entry.damage, Integer::sum);
+                }
+            }
+        }
+
+        displayedLogIndex = 0;
+        logAnimationTimer = 0f;
+        isAnimating = !pendingEntries.isEmpty();
+        skipRequested = false;
+
+        currentAttackerHullId = null;
+        currentTargetHullId = null;
+        spriteAnimTimer = 0f;
+        attackerNudgeOffset = 0f;
+        targetFlashState = false;
+
+        // Note: killedHullIds and fadeOutHullIds are NOT cleared here - they persist across rounds
+        // and are only reset in resetAnimationState() when a new match starts
+
+        if (combatants != null) {
+            for (int i = 0; i < combatants.size(); i++) {
+                String hullId = combatants.get(i).hullId;
+                int finalHp = combatants.get(i).hp;
+                int damageThisRound = totalDamagePerShip.getOrDefault(hullId, 0);
+                int startingHp = Math.min(combatants.get(i).maxHp, finalHp + damageThisRound);
+
+                animatedHp[i] = startingHp;
+                prevAnimatedHp[i] = startingHp;
+                targetAnimatedHp[i] = startingHp;
+                hpAnimTimer[i] = 0f;
+            }
+        }
+    }
+
     protected void createUIElements() {
         if (panel == null) return;
         
@@ -1096,114 +1317,121 @@ protected LabelAPI instructionLabel;
     
     protected void renderShipBoxes(float panelX, float panelY, float panelH, float alphaMult) {
         if (combatants == null) return;
-        
+
         final float NAME_HEIGHT = 16f;
         final float HP_HEIGHT = 11f;
         final float ODDS_HEIGHT = 30f;
-        
+
         float startY = MARGIN + 10f;
         float totalItemHeight = BOX_HEIGHT + BOX_SPACING + NAME_HEIGHT + HP_HEIGHT + ODDS_HEIGHT + ENTRY_SPACING;
-        
+
         for (int i = 0; i < combatants.size(); i++) {
             SpiralGladiator ship = combatants.get(i);
             float shipY = startY + i * totalItemHeight;
-            float shipX = MARGIN;
-            
-            // Reset GL state at start of each ship - DISABLE textures for quad rendering
+
+            boolean isAttacker = ship.hullId != null && ship.hullId.equals(currentAttackerHullId);
+            boolean isTarget = ship.hullId != null && ship.hullId.equals(currentTargetHullId);
+
+            float nudgeOffset = 0f;
+            if (isAttacker && spriteAnimTimer > 0) {
+                nudgeOffset = attackerNudgeOffset;
+            }
+
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GL11.glDisable(GL11.GL_TEXTURE_2D);
-            
+
             float screenY = panelY + panelH - shipY - BOX_HEIGHT;
-            
-            // Calculate HP percentage for fill
+            float renderX = panelX + MARGIN + nudgeOffset;
+
+            int displayHp = (hpAnimating[i] || isAnimating) ? animatedHp[i] : ship.hp;
             float hpPercent;
             Color hpColor;
-            if (ship.isDead) {
-                hpPercent = 0.08f; // Small red sliver for dead ships
+            if (killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead)) {
+                hpPercent = 0.08f;
                 hpColor = COLOR_DESTROYED;
             } else {
-                hpPercent = Math.max(0, Math.min(1, (float) ship.hp / ship.maxHp));
+                hpPercent = Math.max(0, Math.min(1, (float) displayHp / ship.maxHp));
                 hpColor = hpPercent > 0.5f ? COLOR_HEALTHY : (hpPercent > 0.25f ? COLOR_DAMAGED : COLOR_DESTROYED);
             }
-            
-            // Selection highlight
+
             if (i == selectedChampionIndex) {
                 GL11.glDisable(GL11.GL_TEXTURE_2D);
-                GL11.glColor4f(COLOR_SELECTED.getRed() / 255f, COLOR_SELECTED.getGreen() / 255f, 
+                GL11.glColor4f(COLOR_SELECTED.getRed() / 255f, COLOR_SELECTED.getGreen() / 255f,
                     COLOR_SELECTED.getBlue() / 255f, alphaMult * 0.8f);
                 GL11.glBegin(GL11.GL_LINE_LOOP);
-                GL11.glVertex2f(panelX + shipX - 3, screenY - 3);
-                GL11.glVertex2f(panelX + shipX + BOX_WIDTH + 3, screenY - 3);
-                GL11.glVertex2f(panelX + shipX + BOX_WIDTH + 3, screenY + BOX_HEIGHT + 3);
-                GL11.glVertex2f(panelX + shipX - 3, screenY + BOX_HEIGHT + 3);
+                GL11.glVertex2f(renderX - 3, screenY - 3);
+                GL11.glVertex2f(renderX + BOX_WIDTH + 3, screenY - 3);
+                GL11.glVertex2f(renderX + BOX_WIDTH + 3, screenY + BOX_HEIGHT + 3);
+                GL11.glVertex2f(renderX - 3, screenY + BOX_HEIGHT + 3);
                 GL11.glEnd();
             }
-            
-            // 1. Render dark gray background (full box)
-            Misc.renderQuad(panelX + shipX, screenY, BOX_WIDTH, BOX_HEIGHT, COLOR_BOX_BG, alphaMult * 0.8f);
-            
-            // 2. Render HP fill (from LEFT, width = BOX_WIDTH * hpPercent)
+
+            float boxAlpha = fadeOutHullIds.contains(ship.hullId) ? fadeOutAlpha[i] : 1.0f;
+            Misc.renderQuad(renderX, screenY, BOX_WIDTH, BOX_HEIGHT, COLOR_BOX_BG, alphaMult * 0.8f * boxAlpha);
+
             float fillWidth = (BOX_WIDTH - 2) * hpPercent;
-            Misc.renderQuad(panelX + shipX + 1, screenY + 1, fillWidth, BOX_HEIGHT - 2, hpColor, alphaMult * 0.6f);
-            
-            // 3. Render border around entire box
+            Misc.renderQuad(renderX + 1, screenY + 1, fillWidth, BOX_HEIGHT - 2, hpColor, alphaMult * 0.6f * boxAlpha);
+
             GL11.glDisable(GL11.GL_TEXTURE_2D);
             GL11.glColor4f(COLOR_BOX_BORDER.getRed() / 255f, COLOR_BOX_BORDER.getGreen() / 255f,
-                COLOR_BOX_BORDER.getBlue() / 255f, alphaMult * 0.8f);
+                COLOR_BOX_BORDER.getBlue() / 255f, alphaMult * 0.8f * boxAlpha);
             GL11.glLineWidth(1f);
             GL11.glBegin(GL11.GL_LINE_LOOP);
-            GL11.glVertex2f(panelX + shipX, screenY);
-            GL11.glVertex2f(panelX + shipX + BOX_WIDTH, screenY);
-            GL11.glVertex2f(panelX + shipX + BOX_WIDTH, screenY + BOX_HEIGHT);
-            GL11.glVertex2f(panelX + shipX, screenY + BOX_HEIGHT);
+            GL11.glVertex2f(renderX, screenY);
+            GL11.glVertex2f(renderX + BOX_WIDTH, screenY);
+            GL11.glVertex2f(renderX + BOX_WIDTH, screenY + BOX_HEIGHT);
+            GL11.glVertex2f(renderX, screenY + BOX_HEIGHT);
             GL11.glEnd();
             GL11.glEnable(GL11.GL_TEXTURE_2D);
-            
+
             SpriteAPI sprite = getShipSprite(ship.hullId);
             if (sprite != null) {
                 float spriteWidth = sprite.getWidth();
                 float spriteHeight = sprite.getHeight();
                 float maxDim = Math.max(spriteWidth, spriteHeight);
                 float scale = (BOX_HEIGHT * SPRITE_SCALE) / maxDim;
-                
+
                 float scaledWidth = spriteWidth * scale;
                 float scaledHeight = spriteHeight * scale;
-                
-                float centerX = panelX + shipX + BOX_WIDTH / 2f;
+
+                float centerX = renderX + BOX_WIDTH / 2f;
                 float centerY = screenY + BOX_HEIGHT / 2f;
-                
+
                 sprite.setSize(scaledWidth, scaledHeight);
-                
+
                 Color tint;
                 float spriteAlpha;
-                
-                if (ship.isDead) {
+
+                if (isTarget && targetFlashState) {
+                    tint = Color.WHITE;
+                    spriteAlpha = alphaMult * boxAlpha;
+                } else if (killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead)) {
                     tint = COLOR_TINT_DEAD;
-                    spriteAlpha = 0.6f * alphaMult;
+                    spriteAlpha = 0.6f * alphaMult * boxAlpha;
                 } else if (ship.hp < ship.maxHp * 0.5f) {
                     tint = COLOR_TINT_DAMAGED;
-                    spriteAlpha = 0.8f * alphaMult;
+                    spriteAlpha = 0.8f * alphaMult * boxAlpha;
                 } else {
                     tint = Color.WHITE;
-                    spriteAlpha = alphaMult;
+                    spriteAlpha = alphaMult * boxAlpha;
                 }
-                
+
                 sprite.setColor(tint);
                 sprite.setAlphaMult(spriteAlpha);
                 sprite.setNormalBlend();
                 sprite.renderAtCenter(centerX, centerY);
             }
-            
-            if (ship.isDead) {
+
+            if (killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead)) {
                 GL11.glDisable(GL11.GL_TEXTURE_2D);
-                GL11.glColor4f(1f, 0f, 0f, alphaMult * 0.8f);
+                GL11.glColor4f(1f, 0f, 0f, alphaMult * boxAlpha * 0.8f);
                 GL11.glLineWidth(3f);
                 GL11.glBegin(GL11.GL_LINES);
-                GL11.glVertex2f(panelX + shipX + 10, screenY + BOX_HEIGHT - 10);
-                GL11.glVertex2f(panelX + shipX + BOX_WIDTH - 10, screenY + 10);
-                GL11.glVertex2f(panelX + shipX + BOX_WIDTH - 10, screenY + BOX_HEIGHT - 10);
-                GL11.glVertex2f(panelX + shipX + 10, screenY + 10);
+                GL11.glVertex2f(renderX + 10, screenY + BOX_HEIGHT - 10);
+                GL11.glVertex2f(renderX + BOX_WIDTH - 10, screenY + 10);
+                GL11.glVertex2f(renderX + BOX_WIDTH - 10, screenY + BOX_HEIGHT - 10);
+                GL11.glVertex2f(renderX + 10, screenY + 10);
                 GL11.glEnd();
                 GL11.glLineWidth(1f);
                 GL11.glEnable(GL11.GL_TEXTURE_2D);
@@ -1237,7 +1465,7 @@ protected LabelAPI instructionLabel;
                 newInstructionText = Strings.get("arena_panel.next_game");
             } else if (currentRound > 0 && addingBetDuringBattle && selectedChampionIndex < 0) {
                 newInstructionText = Strings.get("arena_panel.select_champion_bet");
-            } else if (currentRound > 0 && addingBetDuringBattle && selectedChampionIndex >= 0) {
+            } else if (currentRound > 0 && addingBetDuringBattle) {
                 SpiralGladiator selected = combatants.get(selectedChampionIndex);
                 newInstructionText = Strings.format("arena_panel.add_bet_on", selected.hullName);
             } else if (currentRound > 0) {
@@ -1288,15 +1516,16 @@ protected LabelAPI instructionLabel;
                     lastShipMaxHp[i] != ship.maxHp ||
                     lastShipDead[i] != ship.isDead;
                 
-                if (hpChanged) {
+                if (hpChanged || isAnimating) {
                     lastShipHp[i] = ship.hp;
                     lastShipMaxHp[i] = ship.maxHp;
                     lastShipDead[i] = ship.isDead;
                     
                     if (shipHpLabels[i] != null) {
-                        shipHpLabels[i].setText(ship.hp + "/" + ship.maxHp + " HP");
-                        Color hpColor = ship.isDead ? COLOR_DESTROYED : 
-                            ((float) ship.hp / ship.maxHp > 0.5f ? COLOR_HEALTHY : COLOR_DAMAGED);
+                        int displayHp = (isAnimating || hpAnimating[i]) ? animatedHp[i] : ship.hp;
+                        shipHpLabels[i].setText(displayHp + "/" + ship.maxHp + " HP");
+                        Color hpColor = (killedHullIds.contains(ship.hullId) || ship.isDead) ? COLOR_DESTROYED : 
+                            ((float) displayHp / ship.maxHp > 0.5f ? COLOR_HEALTHY : COLOR_DAMAGED);
                         shipHpLabels[i].setColor(hpColor);
                     }
                 }
@@ -1486,10 +1715,19 @@ protected List<ParsedLogEntry> getFilteredEntries() {
     }
 
     protected void renderBattleLogSprites(float panelX, float panelY, float alphaMult) {
-        List<ParsedLogEntry> validEntries = getFilteredEntries();
+        List<ParsedLogEntry> validEntries;
+        int entriesToShow;
+
+        if (isAnimating && !pendingEntries.isEmpty()) {
+            validEntries = pendingEntries;
+            entriesToShow = displayedLogIndex;
+        } else {
+            validEntries = getFilteredEntries();
+            entriesToShow = validEntries.size();
+        }
 
         int maxLines = 12;
-        int start = Math.max(0, validEntries.size() - maxLines);
+        int start = Math.max(0, entriesToShow - maxLines);
 
         float logPanelX = SHIP_COLUMN_WIDTH + MARGIN;
         float logPanelY = MARGIN + 40f;
@@ -1500,14 +1738,14 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         float rowSpacing = 4f;
 
         int lineIndex = 0;
-        
+
         float leftSpriteX = panelX + logPanelX + LOG_LEFT_MARGIN + LOG_SPRITE_SIZE / 2f;
         float rightSpriteX = panelX + logPanelX + logPanelW - LOG_LEFT_MARGIN - LOG_SPRITE_SIZE / 2f;
 
         float textStartX_twoSprites = logPanelX + LOG_LEFT_MARGIN + LOG_SPRITE_SIZE + LOG_SPRITE_GAP;
         float textStartX_oneSprite = logPanelX + LOG_LEFT_MARGIN;
 
-        for (int i = start; i < validEntries.size(); i++) {
+        for (int i = start; i < entriesToShow; i++) {
             ParsedLogEntry entry = validEntries.get(i);
 
             float screenY = panelY + logPanelY + logPanelH - currentY - LOG_LINE_HEIGHT;
@@ -1585,7 +1823,7 @@ protected List<ParsedLogEntry> getFilteredEntries() {
                 battleLogTextLabels[lineIndex].setText(labelText);
                 battleLogTextLabels[lineIndex].setColor(labelColor);
                 battleLogTextLabels[lineIndex].setOpacity(1f);
-                
+
                 final float textY = logPanelY + currentY + (LOG_LINE_HEIGHT - 14f) / 2f;
                 battleLogTextLabels[lineIndex].getPosition().inTL(textX, textY);
             }
@@ -1752,6 +1990,13 @@ protected List<ParsedLogEntry> getFilteredEntries() {
     public void processInput(List<InputEventAPI> events) {
         for (InputEventAPI event : events) {
             if (event.isConsumed()) continue;
+
+            // Click-to-skip animation
+            if (event.isMouseDownEvent() && isAnimating) {
+                event.consume();
+                skipRequested = true;
+                return;
+            }
             
             if (event.isKeyDownEvent()) {
                 final int key = event.getEventValue();
@@ -1913,12 +2158,38 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         setBattleEnded(winnerIndex, totalReward, breakdown, this.currentRound);
     }
     
+    protected void resetAnimationState() {
+        logAnimationTimer = 0f;
+        displayedLogIndex = 0;
+        isAnimating = false;
+        pendingEntries.clear();
+        skipRequested = false;
+        
+        currentAttackerHullId = null;
+        currentTargetHullId = null;
+        spriteAnimTimer = 0f;
+        attackerNudgeOffset = 0f;
+        targetFlashState = false;
+        
+        Arrays.fill(animatedHp, 0);
+        Arrays.fill(targetAnimatedHp, 0);
+        Arrays.fill(prevAnimatedHp, 0);
+        Arrays.fill(hpAnimTimer, 0f);
+        Arrays.fill(hpAnimating, false);
+        
+        killedHullIds.clear();
+        fadeOutHullIds.clear();
+        Arrays.fill(fadeOutAlpha, 1.0f);
+    }
+    
     public void resetForNewMatch(
             List<SpiralGladiator> combatants,
             int currentRound,
             int totalBet,
             List<BetInfo> bets,
             List<String> battleLog) {
+        
+        resetAnimationState();
         
         this.battleEnded = false;
         this.winnerIndex = -1;
@@ -1971,7 +2242,21 @@ protected List<ParsedLogEntry> getFilteredEntries() {
                 betsByRound.computeIfAbsent(b.roundPlaced, k -> new ArrayList<>()).add(b);
             }
         }
+
+        List<String> betStrings = getStrings(betsByRound);
+
+        if (betStrings.isEmpty()) return "";
         
+        int displayCount = Math.min(betStrings.size(), 3);
+        String displayText = String.join("", betStrings.subList(0, displayCount));
+        if (betStrings.size() > 3) {
+            displayText += " +" + (betStrings.size() - 3) + " more";
+        }
+        return " " + displayText;
+    }
+
+    private static List<String> getStrings(Map<Integer, List<BetInfo>> betsByRound)
+    {
         List<String> betStrings = new ArrayList<>();
         for (Map.Entry<Integer, List<BetInfo>> entry : betsByRound.entrySet()) {
             List<BetInfo> roundBets = entry.getValue();
@@ -1984,17 +2269,9 @@ protected List<ParsedLogEntry> getFilteredEntries() {
                 betStrings.add(String.format("[%d, %.2fx]", totalAmount, multiplier));
             }
         }
-        
-        if (betStrings.isEmpty()) return "";
-        
-        int displayCount = Math.min(betStrings.size(), 3);
-        String displayText = String.join("", betStrings.subList(0, displayCount));
-        if (betStrings.size() > 3) {
-            displayText += " +" + (betStrings.size() - 3) + " more";
-        }
-        return " " + displayText;
+        return betStrings;
     }
-    
+
     protected String getPositionString(int finalPosition) {
         return switch (finalPosition) {
             case 0 -> "1st";

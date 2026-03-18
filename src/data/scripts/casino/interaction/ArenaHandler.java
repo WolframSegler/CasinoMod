@@ -296,28 +296,31 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
 
         List<HighlightInfo> highlightInfos = new ArrayList<>();
 
-        // Scan for prefixes (strong perks - bright colors)
-        for (String prefix : CasinoConfig.ARENA_PREFIX_STRONG_POS) {
+        List<String> prefixPos = Strings.getList("arena_prefixes.positive");
+        List<String> prefixNeg = Strings.getList("arena_prefixes.negative");
+        List<String> affixPos = Strings.getList("arena_affixes.positive");
+        List<String> affixNeg = Strings.getList("arena_affixes.negative");
+
+        for (String prefix : prefixPos) {
             int pos = fullText.indexOf(prefix);
             if (pos >= 0) {
                 highlightInfos.add(new HighlightInfo(prefix, PREFIX_POSITIVE_COLOR, pos));
             }
         }
-        for (String prefix : CasinoConfig.ARENA_PREFIX_STRONG_NEG) {
+        for (String prefix : prefixNeg) {
             int pos = fullText.indexOf(prefix);
             if (pos >= 0) {
                 highlightInfos.add(new HighlightInfo(prefix, PREFIX_NEGATIVE_COLOR, pos));
             }
         }
 
-        // Scan for affixes (weak perks - dimmer colors)
-        for (String affix : CasinoConfig.ARENA_AFFIX_POS) {
+        for (String affix : affixPos) {
             int pos = fullText.indexOf(affix);
             if (pos >= 0) {
                 highlightInfos.add(new HighlightInfo(affix, AFFIX_POSITIVE_COLOR, pos));
             }
         }
-        for (String affix : CasinoConfig.ARENA_AFFIX_NEG) {
+        for (String affix : affixNeg) {
             int pos = fullText.indexOf(affix);
             if (pos >= 0) {
                 highlightInfos.add(new HighlightInfo(affix, AFFIX_NEGATIVE_COLOR, pos));
@@ -957,6 +960,7 @@ private boolean simulateArenaStep() {
             finishArenaBattle();
         } else {
             delegate.updateForBattle(arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog);
+            delegate.getArenaPanel().startLogAnimation(logEntries);
         }
     }
     
@@ -1175,15 +1179,13 @@ private boolean simulateArenaStep() {
         finalReward = 0;
         currentDelegate = null;
         activeDialogDelegate = null;
-        
-        // Clear any suspended arena memory to ensure fresh start
+
         clearSuspendedArenaMemory();
-        
+
         showArenaVisualPanel();
     }
 
     private void resetArenaState() {
-        // Return any active bets to player before clearing state
         returnActiveBets();
         
         activeArena = null;
@@ -1218,7 +1220,7 @@ private boolean simulateArenaStep() {
         mem.unset(MEM_ARENA_BETS_COUNT);
         
         // Clear combatant data (up to reasonable max)
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 10; i++) {
             if (mem.getString(MEM_ARENA_COMBATANT_PREFIX + i + "_hull_id") == null) {
                 break;
             }
@@ -1238,7 +1240,7 @@ private boolean simulateArenaStep() {
         }
         
         // Clear bet data
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 30; i++) {
             if (!mem.contains("$ipc_arena_bet_" + i + "_amount")) {
                 break;
             }

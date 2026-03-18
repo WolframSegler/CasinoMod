@@ -415,7 +415,6 @@ public class CasinoGachaManager {
             case CAPITAL_SHIP -> "onslaught";
             case CRUISER -> "eagle";
             case DESTROYER -> "hammerhead";
-            case FRIGATE -> "lasher";
             default -> "lasher";
         };
     }
