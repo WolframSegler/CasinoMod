@@ -45,42 +45,42 @@ public class FinHandler {
 
     private void initializeCaptchaQuestions() {
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: What is 15 + 27?",
+            Strings.get("cashout.captcha_1"),
             new String[]{"42", "52", "412"},
             1
         ));
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: What is (7 × 8) + 3?",
+            Strings.get("cashout.captcha_2"),
             new String[]{"59", "77", "83"},
             0
         ));
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: What is the square root of 144?",
+            Strings.get("cashout.captcha_3"),
             new String[]{"12", "14", "24"},
             0
         ));
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: What is 100 - 37?",
+            Strings.get("cashout.captcha_4"),
             new String[]{"53", "63", "73"},
             1
         ));
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: What is 9 × 7?",
+            Strings.get("cashout.captcha_5"),
             new String[]{"56", "63", "72"},
             1
         ));
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: Solve for X: X + 23 = 50",
+            Strings.get("cashout.captcha_6"),
             new String[]{"27", "33", "37"},
             0
         ));
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: What is 144 ÷ 12?",
+            Strings.get("cashout.captcha_7"),
             new String[]{"10", "11", "12"},
             2
         ));
         captchaQuestions.add(new CaptchaQuestion(
-            "Security Verification: What is 8² + 4?",
+            Strings.get("cashout.captcha_8"),
             new String[]{"64", "68", "72"},
             1
         ));

@@ -7,10 +7,6 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Formats arena battle log entries with multi-color highlighting for the text panel.
- * Dispatches to specialized processors based on log entry prefix/pattern.
- */
 public class LogFormatter {
 
     private static final Color SHIP_NAME_COLOR = Color.CYAN;
@@ -22,13 +18,30 @@ public class LogFormatter {
             return;
         }
 
-        if (logEntry.startsWith("[EVENT]")) {
-            processEventLog(logEntry, textPanel);
+        if (logEntry.startsWith("[CRIT]")) {
+            String content = logEntry.substring(6).trim();
+            processCritLog(content, textPanel, combatants);
+            return;
+        }
+
+        if (logEntry.startsWith("[MISS]")) {
+            String content = logEntry.substring(6).trim();
+            processMissLog(content, textPanel, combatants);
             return;
         }
 
         if (logEntry.startsWith("[HIT]")) {
-            processEventDamageLog(logEntry, textPanel, combatants);
+            String content = logEntry.substring(5).trim();
+            if (content.contains("takes")) {
+                processEventDamageLog("[HIT] " + content, textPanel, combatants);
+            } else {
+                processAttackLog(content, textPanel, combatants);
+            }
+            return;
+        }
+
+        if (logEntry.startsWith("[EVENT]")) {
+            processEventLog(logEntry, textPanel);
             return;
         }
 
@@ -47,41 +60,28 @@ public class LogFormatter {
             return;
         }
 
-        if (isCritMessage(logEntry)) {
-            processCritLog(logEntry, textPanel, combatants);
-            return;
-        }
-
-        if (containsDamage(logEntry)) {
-            processAttackLog(logEntry, textPanel, combatants);
-            return;
-        }
-
-        if (isMissMessage(logEntry)) {
-            processMissLog(logEntry, textPanel, combatants);
-            return;
-        }
-
         textPanel.addPara(logEntry, Color.WHITE);
     }
 
     private static void processEventLog(String logEntry, TextPanelAPI textPanel) {
-        textPanel.addPara(logEntry, Color.MAGENTA);
+        String displayText = logEntry.startsWith("[EVENT] ") ? logEntry.substring(8) : logEntry;
+        textPanel.addPara(displayText, Color.MAGENTA);
     }
 
     private static void processEventDamageLog(String logEntry, TextPanelAPI textPanel, List<SpiralAbyssArena.SpiralGladiator> combatants) {
-        textPanel.addPara(logEntry, Color.MAGENTA);
+        String displayText = logEntry.startsWith("[HIT] ") ? logEntry.substring(6) : logEntry;
+        textPanel.addPara(displayText, Color.MAGENTA);
 
         List<String> highlights = new ArrayList<>();
         List<Color> highlightColors = new ArrayList<>();
 
-        String shipName = extractShipName(logEntry, combatants);
+        String shipName = extractShipName(displayText, combatants);
         if (shipName != null) {
             highlights.add(shipName);
             highlightColors.add(SHIP_NAME_COLOR);
         }
 
-        String damage = extractDamageNumber(logEntry);
+        String damage = extractDamageNumber(displayText);
         if (damage != null) {
             highlights.add(damage);
             highlightColors.add(DAMAGE_COLOR);
@@ -97,7 +97,7 @@ public class LogFormatter {
         String displayText = logEntry.startsWith("[KILL] ") ? logEntry.substring(7) : logEntry;
         textPanel.addPara(displayText);
 
-        String shipName = extractShipName(logEntry, combatants);
+        String shipName = extractShipName(displayText, combatants);
 
         List<String> highlights = new ArrayList<>();
         List<Color> highlightColors = new ArrayList<>();
@@ -340,8 +340,20 @@ public class LogFormatter {
     }
 
     private static String extractDamageNumber(String logEntry) {
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(\\d+) CRIT damage");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(\\d+)\\s*点暴击");
         java.util.regex.Matcher matcher = pattern.matcher(logEntry);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        pattern = java.util.regex.Pattern.compile("(\\d+)\\s*点伤害");
+        matcher = pattern.matcher(logEntry);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        pattern = java.util.regex.Pattern.compile("(\\d+) CRIT damage");
+        matcher = pattern.matcher(logEntry);
         if (matcher.find()) {
             return matcher.group(1);
         }
@@ -383,52 +395,5 @@ public class LogFormatter {
         }
 
         return null;
-    }
-
-    private static boolean containsDamage(String logEntry) {
-        String lower = logEntry.toLowerCase();
-
-        if (logEntry.matches(".*for \\d+ damage.*")) {
-            return true;
-        }
-
-        if (logEntry.matches(".*with \\d+ damage.*")) {
-            return true;
-        }
-
-        if (lower.contains("emotional damage")) {
-            return true;
-        }
-
-        if (lower.contains("crit") || lower.contains("critical") || lower.contains("devastating")) {
-            return true;
-        }
-
-        if (lower.contains("hits") || lower.contains("strikes") || lower.contains("blasts") ||
-            lower.contains("slashes") || lower.contains("fires") || lower.contains("unleashes") ||
-            lower.contains("rams") || lower.contains("sends") || lower.contains("dealt")) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static boolean isMissMessage(String logEntry) {
-        String lower = logEntry.toLowerCase();
-        return lower.contains("miss") || lower.contains("dodges") || lower.contains("dodged") ||
-               lower.contains("evades") || lower.contains("evaded") ||
-               lower.contains("misses") || lower.contains("missed") ||
-               lower.contains("shot went wide") || lower.contains("too slow") ||
-               lower.contains("frame perfect") || lower.contains("is that all") ||
-               lower.contains("think you can get away") || lower.contains("your aim is as bad") ||
-               lower.contains("busted");
-    }
-
-    private static boolean isCritMessage(String logEntry) {
-        String lower = logEntry.toLowerCase();
-        return lower.contains("critical") || lower.contains("crit!") || lower.contains("crit damage") ||
-               lower.contains("nowhere to hide") || lower.contains("witness the stars shatter") ||
-               lower.contains("disappear among the sea") || lower.contains("rules are made to be broken") ||
-               lower.contains("feel the weight of a thousand failed gacha");
     }
 }

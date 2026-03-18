@@ -259,7 +259,7 @@ public class CasinoGachaManager {
            }
            return shipName + " (" + m.getHullSpec().getHullName() + ")";
         } else {
-           return "Error: Blueprint corrupted.";
+           return Strings.get("gacha.error_blueprint_corrupted");
         }
     }
     
@@ -296,14 +296,14 @@ public class CasinoGachaManager {
         }
         
         if (member == null) {
-            return "Error: Could not create ship.";
+            return Strings.get("gacha.error_create_ship");
         }
         
         String shipName = member.getShipName();
         if (shipName == null || shipName.isEmpty()) {
             shipName = member.getHullSpec().getHullName();
         }
-        return shipName + " (" + member.getHullSpec().getHullName() + ") " + (isFeatured ? "[FEATURED 5*]" : "[5*]");
+        return shipName + " (" + member.getHullSpec().getHullName() + ") " + (isFeatured ? Strings.get("gacha.featured_5star_tag") : Strings.get("gacha.star_5_tag"));
     }
     
     private String handle4StarDetailed(GachaData data, List<FleetMemberAPI> collectedShips) {
@@ -343,14 +343,14 @@ public class CasinoGachaManager {
         }
         
         if (member == null) {
-            return "Error: Could not create ship.";
+            return Strings.get("gacha.error_create_ship");
         }
         
         String shipName = member.getShipName();
         if (shipName == null || shipName.isEmpty()) {
             shipName = member.getHullSpec().getHullName();
         }
-        return shipName + " (" + member.getHullSpec().getHullName() + ") " + (isFeatured ? "[FEATURED 4*]" : "[4*]");
+        return shipName + " (" + member.getHullSpec().getHullName() + ") " + (isFeatured ? Strings.get("gacha.featured_4star_tag") : Strings.get("gacha.star_4_tag"));
     }
     
     public FleetMemberAPI createShip(String hullId) {

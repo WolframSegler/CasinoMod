@@ -174,12 +174,12 @@ public static class PokerState {
         public record Card(Rank rank, Suit suit) {
             @Override public String toString() {
                 String s = switch(suit) {
-                    case SPADES -> "Spades";
-                    case HEARTS -> "Hearts";
-                    case DIAMONDS -> "Diamonds";
-                    case CLUBS -> "Clubs";
+                    case SPADES -> Strings.get("poker_suits.spades");
+                    case HEARTS -> Strings.get("poker_suits.hearts");
+                    case DIAMONDS -> Strings.get("poker_suits.diamonds");
+                    case CLUBS -> Strings.get("poker_suits.clubs");
                 };
-                return "[" + rank.symbol + " of " + s + "]";
+                return "[" + Strings.format("poker_card_format.of", s, rank.symbol) + "]";
             }
         }
     

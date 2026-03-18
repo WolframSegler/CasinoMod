@@ -1147,8 +1147,8 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             String playerHandDesc = formatHandDescription(cachedPlayerScore);
             String oppHandDesc = formatHandDescription(cachedOpponentScore);
             
-            showPlayerAction("You: " + playerHandDesc);
-            showOpponentAction("Opp: " + oppHandDesc);
+            showPlayerAction(Strings.format("poker_ui.you_prefix", playerHandDesc));
+            showOpponentAction(Strings.format("poker_ui.opp_prefix", oppHandDesc));
             
             int cmp = cachedPlayerScore.compareTo(cachedOpponentScore);
             if (cmp > 0) {
@@ -1188,7 +1188,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
      * E.g., "Two Pair - Kings and Tens" or "Flush - Ace high"
      */
     protected String formatHandDescription(PokerGame.PokerGameLogic.HandScore score) {
-        if (score == null || score.rank == null) return "Unknown";
+        if (score == null || score.rank == null) return Strings.get("poker_hand_desc.unknown");
         
         String rankName = formatHandRank(score.rank);
         
@@ -1228,7 +1228,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
             case FOUR_OF_A_KIND -> Strings.format("poker_hand_desc.four", highCard);
             case STRAIGHT_FLUSH ->
             {
-                if (highCard.equals("Ace"))
+                if (highCard.equals(Strings.get("poker_ranks.ace")))
                 {
                     yield Strings.get("poker_hand_desc.royal_flush");
                 }
@@ -1241,7 +1241,7 @@ public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
      * Formats a hand rank enum into a readable string.
      */
     protected String formatHandRank(PokerGame.PokerGameLogic.HandRank rank) {
-        if (rank == null) return "Unknown";
+        if (rank == null) return Strings.get("poker_hand_desc.unknown");
         return switch (rank)
         {
             case HIGH_CARD -> Strings.get("poker_hand_rank.high_card");
@@ -2063,13 +2063,6 @@ public void updateGameState(PokerGame game) {
         showPlayerAction(Strings.format("poker_actions.you_raise_to", amount));
         if (actionCallback != null) {
             actionCallback.onPlayerAction(PokerGame.Action.RAISE, amount);
-        }
-    }
-    
-    protected void handleBackClick() {
-        showPlayerAction("You leave the table");
-        if (actionCallback != null) {
-            actionCallback.onBackToMenu();
         }
     }
     

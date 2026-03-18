@@ -801,7 +801,7 @@ switch(response.action) {
 
         if (!mem.contains("$ipc_poker_pot_size") || !mem.contains("$ipc_poker_suspend_time")) {
             clearSuspendedGameMemory();
-            main.getTextPanel().addPara("The suspended game data has been corrupted. Starting a new game.", Color.RED);
+            main.getTextPanel().addPara(Strings.get("errors.corrupted_poker_data"), Color.RED);
             showPokerConfirm();
             return;
         }

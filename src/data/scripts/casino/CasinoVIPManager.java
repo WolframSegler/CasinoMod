@@ -299,10 +299,10 @@ if (currentDebt >= maxDebt) {
         int daysRemaining = getDaysRemaining();
         
         StringBuilder rewardLine = new StringBuilder();
-        rewardLine.append("+").append(CasinoConfig.VIP_DAILY_REWARD).append(" daily gem");
+        rewardLine.append(Strings.format("notifications.daily_gem", CasinoConfig.VIP_DAILY_REWARD));
         
         if (interestAmount > 0) {
-            rewardLine.append(", -").append(interestAmount).append(" interest");
+            rewardLine.append(", ").append(Strings.format("notifications.interest", interestAmount));
         }
         
         Global.getSector().getCampaignUI().addMessage(rewardLine.toString(), Color.GREEN);
@@ -549,16 +549,16 @@ if (currentDebt >= maxDebt) {
         int daysRemaining = getDaysRemaining();
         
         StringBuilder rewardLine = new StringBuilder();
-        rewardLine.append("+").append(CasinoConfig.VIP_DAILY_REWARD).append(" daily gem (VIP Purchase Bonus)");
+        rewardLine.append(Strings.format("notifications.daily_gem_bonus", CasinoConfig.VIP_DAILY_REWARD));
         
         if (interestAmount > 0) {
-            rewardLine.append(", -").append(interestAmount).append(" interest");
+            rewardLine.append(", ").append(Strings.format("notifications.interest", interestAmount));
         }
         
         Global.getSector().getCampaignUI().addMessage(rewardLine.toString(), Color.GREEN);
         
         Color balanceColor = newBalance >= 0 ? Color.GREEN : Color.RED;
-        String balanceLine = "Balance: " + newBalance + " Stargems (VIP: " + daysRemaining + " days)";
+        String balanceLine = Strings.format("notifications.balance_status", newBalance, daysRemaining);
         Global.getSector().getCampaignUI().addMessage(balanceLine, balanceColor);
     }
 

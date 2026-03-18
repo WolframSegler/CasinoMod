@@ -401,8 +401,8 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
                 Global.getLogger(this.getClass()).info("  HIT! " + attacker.shortName + " -> " + target.shortName + " for " + dmg + (crit ? " (CRIT!)" : "") + " | HP: " + hpBefore + " -> " + target.hp);
                 
                 String flavor = crit ? getFlavor(Strings.getList("arena_flavor.crit"), lastCritHistory) : getFlavor(Strings.getList("arena_flavor.attack"), lastAttackHistory);
-                
-                log.add(flavor.replace("$attacker", attacker.shortName).replace("$target", target.shortName).replace("$dmg", ""+dmg));
+                String prefix = crit ? "[CRIT] " : "[HIT] ";
+                log.add(prefix + flavor.replace("$attacker", attacker.shortName).replace("$target", target.shortName).replace("$dmg", ""+dmg));
                 
                 if (random.nextFloat() < target.bravery) {
                     target.retaliateTarget = attacker;
@@ -422,7 +422,7 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
                 }
 } else {
                 String miss = getFlavor(Strings.getList("arena_flavor.miss"), lastMissHistory);
-                log.add(miss.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
+                log.add("[MISS] " + miss.replace("$attacker", attacker.shortName).replace("$target", target.shortName));
                 Global.getLogger(this.getClass()).info("  MISS! " + attacker.shortName + " -> " + target.shortName);
             }
         }
@@ -532,7 +532,7 @@ Global.getLogger(this.getClass()).info("  Selected attacker: " + attacker.shortN
      */
     private String getRandomDescription(List<String> descriptions) {
         if (descriptions == null || descriptions.isEmpty()) {
-            return "An incident occurs!";
+            return Strings.get("arena_panel_rewards.incident_occurs");
         }
         return descriptions.get(random.nextInt(descriptions.size()));
     }

@@ -1,0 +1,31 @@
+id,trigger,conditions,script,text,options
+# 在市场中添加"进入赌场"选项(包括空间站和殖民地)
+# 仅在玩家拥有的市场和三头鹰市场可用
+casino_add_option_player,PopulateOptions,"$hasMarket
+$marketSize >= 3
+$menuState == main
+$tradeMode == OPEN
+!$global.casino_disabled
+$faction.id == player",,,20:visit_casino:进入赌场,
+casino_add_option_tritachyon,PopulateOptions,"$hasMarket
+$marketSize >= 3
+$menuState == main
+$tradeMode == OPEN
+!$global.casino_disabled
+$faction.id == tritachyon",,,20:visit_casino:进入赌场,
+# 处理从市场交互中选择"进入赌场"选项
+casino_visit_selected,DialogOptionSelected,$option == visit_casino,Casino_StartCasinoInteraction,,
+# ========================================
+# 债务催收舰队遭遇规则
+# 遵循TriTachLoanIncentiveScript模式(ttli_bountyHunter)
+# ========================================
+# 舰队拦截玩家时发出呼叫 - 使用ignorePlayerCommRequests防止重复呼叫
+casino_debtCollectorHail,BeginFleetEncounter,"$ipc_debt_collector score:1000
+!$ignorePlayerCommRequests","AddText ""$faction $otherShipOrFleet正在向您发送呼叫。"" $faction.baseColor
+$hailing = true 0",,
+# 打开与债务催收员的通讯链接 - 敌对消息,战斗不可避免
+casino_debtCollectorOpenComm,OpenCommLink,"$entity.ipc_debt_collector score:1000
+!$entity.ignorePlayerCommRequests","$entity.ignorePlayerCommRequests = true
+SetShortcut cutCommLinkNoText ""ESCAPE""","""你的乐子到此为止了,该付钱了。""
+
+通讯链接在一阵静电噪音中中断了。",cutCommLinkNoText:继续,

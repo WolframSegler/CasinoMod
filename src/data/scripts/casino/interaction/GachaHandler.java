@@ -378,7 +378,7 @@ public class GachaHandler {
                         if (selectedHullIds.contains(ship.getHullId())) {
                             int val = (int)(ship.getHullSpec().getBaseValue() / CasinoConfig.SHIP_TRADE_RATE * CasinoConfig.SHIP_SELL_MULTIPLIER);
                             CasinoVIPManager.addToBalance(val);
-                            String shipName = ship.getShipName() != null ? ship.getShipName() : "Unknown Ship";
+                            String shipName = ship.getShipName() != null ? ship.getShipName() : Strings.get("gacha.unknown_ship");
                             main.textPanel.addPara(Strings.format("gacha.converted", shipName, val), Color.GREEN);
                         } else {
                             Global.getSector().getPlayerFleet().getFleetData().addFleetMember(ship);

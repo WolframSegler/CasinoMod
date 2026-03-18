@@ -7,6 +7,7 @@ import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import com.fs.starfarer.api.util.Misc;
 import data.scripts.casino.interaction.CasinoInteraction;
 import data.scripts.casino.CasinoConfig;
+import data.scripts.casino.Strings;
 
 import java.awt.Color;
 import java.util.List;
@@ -69,7 +70,7 @@ public class Casino_StartCasinoInteraction extends BaseCommandPlugin {
                 
                 if (marketSize < minSize) {
                     // Market is too small for casino
-                    dialog.getTextPanel().addPara("This market is too small to support a casino establishment.", Color.RED);
+                    dialog.getTextPanel().addPara(Strings.get("errors.market_too_small"), Color.RED);
                     return false;
                 }
             }

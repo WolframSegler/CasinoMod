@@ -147,27 +147,26 @@ private final CasinoInteraction main;
         
         if (!isVIP) {
             return BetValidationResult.error(
-                "Overdraft requires VIP Pass subscription."
+                Strings.get("arena_errors.overdraft_vip_only")
             );
         }
         
         if (availableCredit <= 0) {
             return BetValidationResult.error(
-                "Credit facility exhausted. Visit Stargem Top-up."
+                Strings.get("arena_errors.credit_exhausted_topup")
             );
         }
         
         if (availableCredit < amount) {
             return BetValidationResult.error(
-                "Available credit: " + availableCredit + " SG (insufficient for " + amount + " SG bet)"
+                Strings.format("arena_errors.credit_insufficient", availableCredit, amount)
             );
         }
         
         int newBalance = balance - amount;
         int overdraftAmount = -newBalance;
 
-        String msg = "Balance: " + balance + " → " + newBalance + " SG" +
-                " (using " + overdraftAmount + " SG overdraft)";
+        String msg = Strings.format("arena_errors.overdraft_balance_change", balance, newBalance, overdraftAmount);
         
         return BetValidationResult.needsOverdraft(msg, newBalance, overdraftAmount);
     }
@@ -243,7 +242,7 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
             if (chosenIdx != -1) {
                 startArenaBattle(chosenIdx);
             } else {
-                main.textPanel.addPara("Error: Selected champion not found. Returning to lobby.", Color.RED);
+                main.textPanel.addPara(Strings.get("errors.champion_not_found"), Color.RED);
                 showArenaLobby();
             }
         });
@@ -393,9 +392,9 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
                 String optionId = championIndex >= 0
                     ? optionPrefix + championIndex + "_" + betAmount
                     : OPTION_ARENA_ADD_BET + betAmount;
-                String label = "Add " + betAmount + " Stargems";
+                String label = Strings.format("arena.add_stargems", betAmount);
                 if (playerBalance < betAmount && isVIP) {
-                    label += " (overdraft)";
+                    label = Strings.format("arena.add_stargems_overdraft", betAmount);
                 }
                 main.getOptions().addOption(label, optionId);
                 hasBetOptions = true;
@@ -412,9 +411,9 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
                 String optionId = championIndex >= 0
                     ? optionPrefix + championIndex + "_" + percentAmount
                     : OPTION_ARENA_ADD_BET + percentAmount;
-                String label = "Add " + percentAmount + " Stargems (" + percent + "% of " + percentageLabel + ")";
+                String label = Strings.format("arena.add_stargems_percent", percentAmount, percent, percentageLabel);
                 if (playerBalance < percentAmount && isVIP) {
-                    label += " (overdraft)";
+                    label = Strings.format("arena.add_stargems_overdraft", percentAmount);
                 }
                 main.getOptions().addOption(label, optionId);
                 hasBetOptions = true;
@@ -436,13 +435,13 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
             }
 
             if (availableCredit <= 0) {
-                main.textPanel.addPara("Your credit facility is exhausted. You cannot afford this bet of " + amount + " Stargems.", Color.RED);
-                main.textPanel.addPara("Please visit Stargem Top-up to purchase more gems.", Color.YELLOW);
+                main.textPanel.addPara(Strings.format("arena_errors.credit_exhausted_bet", amount), Color.RED);
+                main.textPanel.addPara(Strings.get("arena_errors.select_smaller_topup"), Color.YELLOW);
                 showAddBetMenu();
                 return true;
             } else if (availableCredit < amount) {
-                main.textPanel.addPara("Your available credit (" + availableCredit + " Stargems) is insufficient for this bet of " + amount + " Stargems.", Color.RED);
-                main.textPanel.addPara("Please select a smaller bet amount or visit Stargem Top-up.", Color.YELLOW);
+                main.textPanel.addPara(Strings.format("arena_errors.credit_insufficient_bet", availableCredit, amount), Color.RED);
+                main.textPanel.addPara(Strings.get("arena_errors.select_smaller_topup"), Color.YELLOW);
                 showAddBetMenu();
                 return true;
             }
@@ -1338,7 +1337,7 @@ private boolean simulateArenaStep() {
                 applyShipHighlighting(gladiator, fullText, currentOdds, Color.YELLOW,
                     gladiator.hp + "/" + gladiator.maxHp + " HP", Color.CYAN);
 
-                main.getOptions().addOption("Bet on " + gladiator.prefix + " " + gladiator.hullName + " " + gladiator.affix + " [" + currentOdds + "]", OPTION_ARENA_SELECT_CHAMPION_FOR_BET + i, Color.YELLOW, null);
+                main.getOptions().addOption(Strings.format("arena_errors.bet_on", gladiator.prefix, gladiator.hullName, gladiator.affix, currentOdds), OPTION_ARENA_SELECT_CHAMPION_FOR_BET + i, Color.YELLOW, null);
             }
         }
 
@@ -1363,7 +1362,7 @@ private void performAddBetToChampion(int championIndex, int additionalAmount) {
 
         SpiralAbyssArena.SpiralGladiator targetChampion = arenaCombatants.get(championIndex);
         if (targetChampion.isDead) {
-            main.getTextPanel().addPara("Cannot place bet on " + targetChampion.fullName + ", the champion has been defeated!", Color.RED);
+            main.getTextPanel().addPara(Strings.format("arena_errors.champion_defeated_bet", targetChampion.fullName), Color.RED);
             showArenaVisualPanel();
             return;
         }
@@ -1511,7 +1510,7 @@ private void performAddBetToChampion(int championIndex, int additionalAmount) {
 
         if (!mem.contains(MEM_ARENA_SUSPEND_TIME) || !mem.contains(MEM_ARENA_COMBATANT_COUNT)) {
             clearSuspendedArenaMemory();
-            main.getTextPanel().addPara("The suspended arena data has been corrupted. Starting a new match.", Color.RED);
+            main.getTextPanel().addPara(Strings.get("errors.corrupted_arena_data"), Color.RED);
             showArenaLobby();
             return;
         }

@@ -79,20 +79,24 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
                 type = "EVENT";
                 String content = rawEntry.substring(7).trim();
                 parseEventLine(content, combatants);
-            } else if (rawEntry.startsWith("[HIT]")) {
-                type = "EVENT_HIT";
-                String content = rawEntry.substring(5).trim();
-                parseEventHitLine(content, combatants);
-            } else if (rawEntry.contains("CRIT damage")) {
+            } else if (rawEntry.startsWith("[CRIT]")) {
                 type = "HIT";
                 isCrit = true;
-                parseAttackLine(rawEntry, combatants);
-            } else if (rawEntry.contains("miss") || rawEntry.contains("dodges") || rawEntry.contains("Evaded") || rawEntry.contains("shot goes wide")) {
+                String content = rawEntry.substring(6).trim();
+                parseAttackLine(content, combatants);
+            } else if (rawEntry.startsWith("[MISS]")) {
                 type = "MISS";
-                parseMissLine(rawEntry, combatants);
-            } else if (rawEntry.contains(" damage") || rawEntry.contains(" for ")) {
-                type = "HIT";
-                parseAttackLine(rawEntry, combatants);
+                String content = rawEntry.substring(6).trim();
+                parseMissLine(content, combatants);
+            } else if (rawEntry.startsWith("[HIT]")) {
+                String content = rawEntry.substring(5).trim();
+                if (content.contains("takes")) {
+                    type = "EVENT_HIT";
+                    parseEventHitLine(content, combatants);
+                } else {
+                    type = "HIT";
+                    parseAttackLine(content, combatants);
+                }
             } else if (rawEntry.contains("--- SHIP STATUS ---") || rawEntry.contains("HP:")) {
                 type = "STATUS";
             } else {
@@ -605,17 +609,21 @@ protected LabelAPI instructionLabel;
             if (shouldAdvance) {
                 logAnimationTimer = 0f;
 
-                if (displayedLogIndex < pendingEntries.size()) {
-                    ParsedLogEntry current = pendingEntries.get(displayedLogIndex);
-                    triggerEntryAnimation(current);
-                    displayedLogIndex++;
-                }
-
                 if (skipRequested) {
                     skipRequested = false;
                     while (displayedLogIndex < pendingEntries.size()) {
                         ParsedLogEntry current = pendingEntries.get(displayedLogIndex);
-                        triggerEntryAnimation(current);
+                        triggerEntryAnimation(current, false);
+                        displayedLogIndex++;
+                    }
+                    currentAttackerHullId = null;
+                    currentTargetHullId = null;
+                    spriteAnimTimer = 0f;
+                    targetFlashState = false;
+                } else {
+                    if (displayedLogIndex < pendingEntries.size()) {
+                        ParsedLogEntry current = pendingEntries.get(displayedLogIndex);
+                        triggerEntryAnimation(current, true);
                         displayedLogIndex++;
                     }
                 }
@@ -667,51 +675,70 @@ protected LabelAPI instructionLabel;
     }
 
     protected void triggerEntryAnimation(ParsedLogEntry entry) {
+        triggerEntryAnimation(entry, true);
+    }
+
+    protected void triggerEntryAnimation(ParsedLogEntry entry, boolean animate) {
         switch (entry.type) {
             case "HIT" -> {
-                currentAttackerHullId = entry.attackerHullId;
-                currentTargetHullId = entry.targetHullId;
-                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
-                animateHpReduction(entry.targetHullId, entry.damage);
+                if (animate) {
+                    currentAttackerHullId = entry.attackerHullId;
+                    currentTargetHullId = entry.targetHullId;
+                    spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                }
+                animateHpReduction(entry.targetHullId, entry.damage, animate);
             }
             case "MISS" -> {
-                currentAttackerHullId = entry.attackerHullId;
-                currentTargetHullId = entry.targetHullId;
-                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                if (animate) {
+                    currentAttackerHullId = entry.attackerHullId;
+                    currentTargetHullId = entry.targetHullId;
+                    spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                }
             }
             case "KILL" -> {
-                currentAttackerHullId = entry.attackerHullId;
-                currentTargetHullId = entry.targetHullId;
-                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                if (animate) {
+                    currentAttackerHullId = entry.attackerHullId;
+                    currentTargetHullId = entry.targetHullId;
+                    spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                }
 
                 killedHullIds.add(entry.targetHullId);
                 fadeOutHullIds.add(entry.targetHullId);
                 int targetIdx = findCombatantIndex(entry.targetHullId);
                 if (targetIdx >= 0) {
-                    fadeOutAlpha[targetIdx] = 1.0f;
+                    fadeOutAlpha[targetIdx] = animate ? 1.0f : 0.5f;
                 }
             }
             case "EVENT", "EVENT_HIT" -> {
-                currentAttackerHullId = entry.attackerHullId;
-                currentTargetHullId = null;
-                spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                if (animate) {
+                    currentAttackerHullId = entry.attackerHullId;
+                    currentTargetHullId = null;
+                    spriteAnimTimer = CasinoConfig.ARENA_SPRITE_NUDGE_DURATION;
+                }
                 if (entry.damage > 0) {
-                    animateHpReduction(entry.attackerHullId, entry.damage);
+                    animateHpReduction(entry.attackerHullId, entry.damage, animate);
                 }
             }
             case "ROUND" -> {
-                currentAttackerHullId = null;
-                currentTargetHullId = null;
+                if (animate) {
+                    currentAttackerHullId = null;
+                    currentTargetHullId = null;
+                }
             }
         }
     }
 
-    protected void animateHpReduction(String hullId, int damage) {
+    protected void animateHpReduction(String hullId, int damage, boolean animate) {
         int idx = findCombatantIndex(hullId);
         if (idx >= 0 && idx < hpAnimTimer.length) {
-            prevAnimatedHp[idx] = animatedHp[idx];
-            targetAnimatedHp[idx] = Math.max(0, animatedHp[idx] - damage);
-            hpAnimTimer[idx] = CasinoConfig.ARENA_HP_ANIM_DURATION;
+            if (animate) {
+                prevAnimatedHp[idx] = animatedHp[idx];
+                targetAnimatedHp[idx] = Math.max(0, animatedHp[idx] - damage);
+                hpAnimTimer[idx] = CasinoConfig.ARENA_HP_ANIM_DURATION;
+            } else {
+                animatedHp[idx] = Math.max(0, animatedHp[idx] - damage);
+                targetAnimatedHp[idx] = animatedHp[idx];
+            }
         }
     }
 
@@ -1254,7 +1281,7 @@ protected LabelAPI instructionLabel;
             final float displayOdds = oddsCached && i < cachedOdds.length ? 
                 cachedOdds[i] : ship.getCurrentOdds(currentRound);
             final LabelAPI oddsLbl = settings.createLabel(
-                String.format("Odds: %.2fx", displayOdds), Fonts.DEFAULT_SMALL
+                String.format(Strings.get("arena_panel_rewards.odds"), displayOdds), Fonts.DEFAULT_SMALL
             );
             shipOddsLabels[i] = oddsLbl;
             oddsLbl.setColor(Color.YELLOW);
@@ -1405,21 +1432,29 @@ protected LabelAPI instructionLabel;
 
                 if (isTarget && targetFlashState) {
                     tint = Color.WHITE;
-                    spriteAlpha = alphaMult * boxAlpha;
+                    spriteAlpha = 1.5f * alphaMult * boxAlpha;
+                    sprite.setColor(tint);
+                    sprite.setAlphaMult(spriteAlpha);
+                    sprite.setAdditiveBlend();
                 } else if (killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead)) {
                     tint = COLOR_TINT_DEAD;
                     spriteAlpha = 0.6f * alphaMult * boxAlpha;
+                    sprite.setColor(tint);
+                    sprite.setAlphaMult(spriteAlpha);
+                    sprite.setNormalBlend();
                 } else if (displayHp < ship.maxHp * 0.5f) {
                     tint = COLOR_TINT_DAMAGED;
                     spriteAlpha = 0.8f * alphaMult * boxAlpha;
+                    sprite.setColor(tint);
+                    sprite.setAlphaMult(spriteAlpha);
+                    sprite.setNormalBlend();
                 } else {
                     tint = Color.WHITE;
                     spriteAlpha = alphaMult * boxAlpha;
+                    sprite.setColor(tint);
+                    sprite.setAlphaMult(spriteAlpha);
+                    sprite.setNormalBlend();
                 }
-
-                sprite.setColor(tint);
-                sprite.setAlphaMult(spriteAlpha);
-                sprite.setNormalBlend();
                 sprite.renderAtCenter(centerX, centerY);
             }
 
@@ -1544,7 +1579,7 @@ protected LabelAPI instructionLabel;
                     lastShipOdds[i] = displayOdds;
                     lastShipBetCount[i] = currentBetCount;
                     
-                    String oddsText = String.format("Odds: %.2fx", displayOdds);
+                    String oddsText = String.format(Strings.get("arena_panel_rewards.odds"), displayOdds);
                     oddsText += buildBetDisplayText(ship);
                     
                     shipOddsLabels[i].setText(oddsText);
@@ -1577,7 +1612,7 @@ protected LabelAPI instructionLabel;
             } else {
                 if (winnerIndex >= 0 && winnerIndex < Objects.requireNonNull(combatants).size()) {
                     SpiralGladiator winner = combatants.get(winnerIndex);
-                    resultLabel.setText("WINNER: " + winner.hullName + "!\nReward: " + totalReward + " Stargems");
+                    resultLabel.setText(Strings.format("arena_panel_rewards.winner_reward", winner.hullName, totalReward));
                     resultLabel.setColor(Color.GREEN);
                 } else {
                     // Don't show "Battle Complete!" - keep empty
@@ -1604,27 +1639,27 @@ protected LabelAPI instructionLabel;
         
         if (winnerIndex >= 0 && winnerIndex < combatants.size()) {
             SpiralGladiator winner = combatants.get(winnerIndex);
-            rewardBreakdownLabels[lineIndex].setText("WINNER: " + winner.hullName + "!");
+            rewardBreakdownLabels[lineIndex].setText(Strings.format("arena_panel_rewards.winner", winner.hullName));
             rewardBreakdownLabels[lineIndex].setColor(PREFIX_POSITIVE_COLOR);
             lineIndex++;
         }
         
-        rewardBreakdownLabels[lineIndex].setText("--- Reward Breakdown ---");
+        rewardBreakdownLabels[lineIndex].setText(Strings.get("arena_panel_rewards.header"));
         rewardBreakdownLabels[lineIndex].setColor(BATTLE_EVENT_COLOR);
         lineIndex++;
         
-        rewardBreakdownLabels[lineIndex].setText("Total Bet: " + rewardBreakdown.totalBet + " SG");
+        rewardBreakdownLabels[lineIndex].setText(Strings.format("arena_panel_rewards.total_bet", rewardBreakdown.totalBet));
         rewardBreakdownLabels[lineIndex].setColor(Color.WHITE);
         lineIndex++;
         
         if (rewardBreakdown.winReward > 0) {
-            rewardBreakdownLabels[lineIndex].setText("Win Reward: +" + rewardBreakdown.winReward + " SG");
+            rewardBreakdownLabels[lineIndex].setText(Strings.format("arena_panel_rewards.win_reward", rewardBreakdown.winReward));
             rewardBreakdownLabels[lineIndex].setColor(PREFIX_POSITIVE_COLOR);
             lineIndex++;
         }
         
         if (rewardBreakdown.consolationReward > 0) {
-            rewardBreakdownLabels[lineIndex].setText("Consolation: +" + rewardBreakdown.consolationReward + " SG");
+            rewardBreakdownLabels[lineIndex].setText(Strings.format("arena_panel_rewards.consolation", rewardBreakdown.consolationReward));
             rewardBreakdownLabels[lineIndex].setColor(BATTLE_EVENT_HIT_COLOR);
             lineIndex++;
         }
@@ -1636,7 +1671,7 @@ protected LabelAPI instructionLabel;
         
         if (totalKills > 0) {
             float killBonusPct = totalKills * CasinoConfig.ARENA_KILL_BONUS_PER_KILL * 100;
-            rewardBreakdownLabels[lineIndex].setText("Kill Bonus: " + totalKills + " kills (+" + (int)killBonusPct + "%)");
+            rewardBreakdownLabels[lineIndex].setText(Strings.format("arena_panel_rewards.kill_bonus", totalKills, killBonusPct));
             rewardBreakdownLabels[lineIndex].setColor(KILL_COLOR);
             lineIndex++;
         }
@@ -1667,7 +1702,7 @@ protected LabelAPI instructionLabel;
         int net = rewardBreakdown.netResult;
         Color netColor = net >= 0 ? NET_POSITIVE_COLOR : NET_NEGATIVE_COLOR;
         String netStr = net >= 0 ? "+" + net : String.valueOf(net);
-        rewardBreakdownLabels[lineIndex].setText("NET: " + netStr + " SG");
+        rewardBreakdownLabels[lineIndex].setText(Strings.format("arena_panel_rewards.net", netStr));
         rewardBreakdownLabels[lineIndex].setColor(netColor);
     }
     
@@ -1757,7 +1792,13 @@ protected List<ParsedLogEntry> getFilteredEntries() {
 
             switch (entry.type) {
                 case "HIT" -> {
-                    labelText = shortenDamageText(entry.rawEntry);
+                    String hitText = entry.rawEntry;
+                    if (hitText.startsWith("[CRIT] ")) {
+                        hitText = hitText.substring(7);
+                    } else if (hitText.startsWith("[HIT] ")) {
+                        hitText = hitText.substring(6);
+                    }
+                    labelText = shortenDamageText(hitText);
                     labelColor = entry.isCrit ? BATTLE_HIT_COLOR_CRIT : BATTLE_HIT_COLOR;
                     textX = textStartX_twoSprites;
 
@@ -1765,7 +1806,11 @@ protected List<ParsedLogEntry> getFilteredEntries() {
                     drawBattleLogSpriteWithDead(entry.targetHullId, rightSpriteX, spriteCenterY, alphaMult, false);
                 }
                 case "MISS" -> {
-                    labelText = shortenDamageText(entry.rawEntry);
+                    String missText = entry.rawEntry;
+                    if (missText.startsWith("[MISS] ")) {
+                        missText = missText.substring(7);
+                    }
+                    labelText = shortenDamageText(missText);
                     labelColor = BATTLE_MISS_COLOR;
                     textX = textStartX_twoSprites;
 
@@ -1786,6 +1831,9 @@ protected List<ParsedLogEntry> getFilteredEntries() {
                 }
                 case "EVENT" -> {
                     String eventText = entry.rawEntry;
+                    if (eventText.startsWith("[EVENT] ")) {
+                        eventText = eventText.substring(8);
+                    }
                     labelText = shortenDamageText(eventText);
                     labelColor = BATTLE_EVENT_COLOR;
                     textX = textStartX_oneSprite;
@@ -2068,7 +2116,7 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         if (messageLabel == null) return;
         
         if (showingOverdraftConfirmation) {
-            messageLabel.setText("OVERDRAFT CONFIRMATION\n" + currentOverdraftMessage);
+            messageLabel.setText(Strings.get("arena_panel_rewards.overdraft_title") + "\n" + currentOverdraftMessage);
             messageLabel.setColor(new Color(255, 200, 50));
         } else if (showingErrorMessage) {
             messageLabel.setText(currentErrorMessage);

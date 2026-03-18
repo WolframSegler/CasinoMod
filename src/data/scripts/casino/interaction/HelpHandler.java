@@ -77,37 +77,37 @@ public class HelpHandler {
 
     public void showPokerHelp() {
         main.options.clearOptions();
-        main.textPanel.addPara("\n--- Texas Hold'em ---", Color.CYAN);
-        main.textPanel.addPara("Make the best 5-card hand using your 2 hole cards and 5 community cards.");
+        main.textPanel.addPara(Strings.get("poker_help.title"), Color.CYAN);
+        main.textPanel.addPara(Strings.get("poker_help.intro"));
         main.textPanel.addPara("");
-        main.textPanel.addPara("Hand Rankings (Strongest to Weakest):", Color.GRAY);
-        main.textPanel.addPara("1. Royal Flush - A, K, Q, J, 10, same suit");
-        main.textPanel.addPara("2. Straight Flush - Five consecutive same suit");
-        main.textPanel.addPara("3. Four of a Kind - Four same rank");
-        main.textPanel.addPara("4. Full House - Three of a kind + pair");
-        main.textPanel.addPara("5. Flush - Five same suit");
-        main.textPanel.addPara("6. Straight - Five consecutive");
-        main.textPanel.addPara("7. Three of a Kind - Three same rank");
-        main.textPanel.addPara("8. Two Pair - Two different pairs");
-        main.textPanel.addPara("9. One Pair - Two same rank");
-        main.textPanel.addPara("10. High Card - Highest single card");
+        main.textPanel.addPara(Strings.get("poker_help.rankings_title"), Color.GRAY);
+        main.textPanel.addPara(Strings.get("poker_help.rank_1"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_2"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_3"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_4"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_5"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_6"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_7"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_8"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_9"));
+        main.textPanel.addPara(Strings.get("poker_help.rank_10"));
         main.textPanel.addPara("");
-        main.textPanel.addPara("Betting Actions:", Color.GRAY);
-        main.textPanel.addPara("- Call: Match the current bet");
-        main.textPanel.addPara("- Check: Pass (only if no bet to call)");
-        main.textPanel.addPara("- Raise: Increase the bet");
-        main.textPanel.addPara("- Fold: Surrender and forfeit bets");
+        main.textPanel.addPara(Strings.get("poker_help.actions_title"), Color.GRAY);
+        main.textPanel.addPara(Strings.get("poker_help.action_call"));
+        main.textPanel.addPara(Strings.get("poker_help.action_check"));
+        main.textPanel.addPara(Strings.get("poker_help.action_raise"));
+        main.textPanel.addPara(Strings.get("poker_help.action_fold"));
         main.textPanel.addPara("");
-        main.textPanel.addPara("Leaving mid-hand or flipping the table forfeits your bet!", Color.RED);
+        main.textPanel.addPara(Strings.get("poker_help.leave_warning"), Color.RED);
 
         if (main.poker.getPokerGame() != null &&
             main.poker.getPokerGame().getState() != null &&
             main.poker.getPokerGame().getState().playerStack > 0 &&
             main.poker.getPokerGame().getState().playerHand != null &&
             !main.poker.getPokerGame().getState().playerHand.isEmpty()) {
-            main.options.addOption("Back to Game", "poker_back_action");
+            main.options.addOption(Strings.get("poker_help.back_to_game"), "poker_back_action");
         } else {
-            main.options.addOption("Back", "play");
+            main.options.addOption(Strings.get("common.back"), "play");
         }
     }
 
