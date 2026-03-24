@@ -905,8 +905,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
     
     private void renderCardFaceUp(float x, float y, Card card, float alphaMult) {
         Misc.renderQuad(x + 3, y - 3, CARD_WIDTH, CARD_HEIGHT, COLOR_CARD_SHADOW, alphaMult * 0.3f);
-
-        Global.getLogger(getClass()).error(card.suit() + " "+card.rank());
         
         if (card != null) {
             GL11.glEnable(GL11.GL_TEXTURE_2D);
