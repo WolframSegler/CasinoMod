@@ -1,4 +1,4 @@
-package data.scripts.casino.Poker;
+package data.scripts.casino.cards;
 
 public class CardFlipAnimation {
     public enum Phase { HIDDEN, FLIPPING, REVEALED }
@@ -22,12 +22,9 @@ public class CardFlipAnimation {
     }
     
     public void advance(float amount) {
-        // Cap delta to prevent instant animation completion on lag/pause
-        // Max 100ms per frame ensures smooth animation even with large time deltas
         final float maxDelta = 0.1f;
         amount = Math.min(amount, maxDelta);
 
-        // Only progress if animation has been explicitly triggered
         if (phase == Phase.HIDDEN && triggered) {
             if (delay > 0) {
                 delay -= amount;
@@ -46,7 +43,6 @@ public class CardFlipAnimation {
                 progress = 1f;
                 phase = Phase.REVEALED;
             } else if (progress > oldProgress + 0.1f) {
-                // Log significant progress updates (every 10%)
             }
         }
     }

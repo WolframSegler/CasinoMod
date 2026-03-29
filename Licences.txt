@@ -7,5 +7,10 @@ Please do not use or redistribute any part of this mod commercially.
 Find Hoyo's guide on the usage of their copyrighted materials at
 https://www.hoyolab.com/article/17883171
 
+For poker card art (SVG-cards):
+Licensed under LGPL-2.1
+Original by David Bellot, forked and improved by htdebeer
+https://github.com/htdebeer/SVG-cards
+
 For the rest of the mod:
 Free to use, modify and redistribute for non commercial purposes.

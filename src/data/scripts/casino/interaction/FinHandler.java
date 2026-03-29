@@ -16,11 +16,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.function.Predicate;
 
-/**
- * Handler for financial services: VIP subscriptions, ship trading, and the
- * satirical ISP-themed cashout flow. Cashout is deliberately obstructive
- * with hold queues, CAPTCHA verification, and dead-end transfers.
- */
+//Handler for financial services: VIP subscriptions, ship trading, and satirical cashout flow.
+
 public class FinHandler {
 
     private final CasinoInteraction main;
@@ -32,7 +29,7 @@ public class FinHandler {
     private record CaptchaQuestion(String question, String[] options, int correctIndex)
     {    }
 
-    // Pool of CAPTCHA questions
+    // Pool of CAPTCHA questions for cashout
     private final List<CaptchaQuestion> captchaQuestions = new ArrayList<>();
     private int currentCaptchaIndex = -1;
     private int holdWaitCount = 0;

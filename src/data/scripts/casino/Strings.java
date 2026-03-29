@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static data.scripts.constants.Mods.CasionMod;
-
 public class Strings {
     private static final Logger log = Global.getLogger(Strings.class);
     private static final String STRINGS_PATH = "data/config/strings.json";
@@ -20,7 +18,7 @@ public class Strings {
 
     public static void load() {
         try {
-            strings = Global.getSettings().loadJSON(STRINGS_PATH, CasionMod);
+            strings = Global.getSettings().loadJSON(STRINGS_PATH, CasinoConfig.MOD_ID);
             log.info("Casino strings loaded successfully");
         } catch (IOException | JSONException e) {
             log.error("Error loading casino strings: " + e.getMessage());

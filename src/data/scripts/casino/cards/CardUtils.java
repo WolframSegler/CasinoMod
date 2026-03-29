@@ -1,4 +1,4 @@
-package data.scripts.casino.Poker;
+package data.scripts.casino.cards;
 
 import data.scripts.casino.Strings;
 import data.scripts.casino.PokerGame.PokerGameLogic.Rank;

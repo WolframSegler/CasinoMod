@@ -19,10 +19,6 @@ import java.util.Set;
 import java.util.Comparator;
 import java.util.function.Predicate;
 
-/**
- * Handles all arena-related interactions for the casino mod.
- * Manages champion selection, betting, battle simulation, and reward calculation.
- */
 public class ArenaHandler {
 
     private static final int MIN_BET_INCREMENT = 100;
@@ -68,11 +64,7 @@ private final CasinoInteraction main;
     protected int currentRound;
     protected int currentBetAmount = CasinoConfig.ARENA_ENTRY_FEE;
     protected int cachedTotalBet = 0;
-    
-    /**
-     * Represents a bet placed on a champion in the arena.
-     * Tracks the bet amount, multiplier at time of bet, target ship, and round placed.
-     */
+
     public static class BetInfo {
         public int amount;
         public float multiplier;
@@ -86,11 +78,7 @@ private final CasinoInteraction main;
             this.roundPlaced = roundPlaced;
         }
     }
-    
-    /**
-     * Result of validating a bet amount against player's balance and credit.
-     * Used to determine if a bet can proceed, needs overdraft confirmation, or should be rejected.
-     */
+
     public static class BetValidationResult {
         public enum ResultType {
             CAN_AFFORD,
@@ -129,13 +117,7 @@ private final CasinoInteraction main;
         public boolean needsOverdraftConfirmation() { return type == ResultType.NEEDS_OVERDRAFT; }
         public boolean hasError() { return type == ResultType.ERROR; }
     }
-    
-    /**
-     * Validates whether a bet can be placed, considering balance and overdraft availability.
-     * 
-     * @param amount The bet amount to validate
-     * @return BetValidationResult indicating if bet can proceed, needs overdraft, or should be rejected
-     */
+
     public static BetValidationResult validateBet(int amount) {
         int balance = CasinoVIPManager.getBalance();
         int availableCredit = CasinoVIPManager.getAvailableCredit();
@@ -366,12 +348,6 @@ protected List<BetInfo> arenaBets = new ArrayList<>();
         }
     }
 
-    /**
-     * Adds bet amount options to the menu based on player's available balance and credit.
-     * Includes fixed amounts (100, 500, 2000) and percentage-based options (10%, 50%).
-     * AI_AGENT_NOTE: Uses availableCredit for determining affordability, not playerBalance.
-     * This allows VIP players with overdraft to see bet options even with 0 balance.
-     */
     private boolean addBetOptions(int playerBalance, int availableCredit, String optionPrefix, int championIndex) {
         boolean hasBetOptions = false;
         boolean isVIP = CasinoVIPManager.isOverdraftAvailable();
@@ -831,7 +807,7 @@ private boolean simulateArenaStep() {
             }
         }
 
-        if (logEntries.isEmpty() && aliveCount <= 1) {
+        if (aliveCount <= 1) {
             finishArenaBattle();
             return false;
         }
@@ -861,7 +837,7 @@ private boolean simulateArenaStep() {
 
             battleLog.addAll(logEntries);
             
-            result = !(logEntries.isEmpty() && aliveCount <= 1);
+            result = aliveCount > 1;
         } while (result);
         
         finishArenaBattle();
@@ -921,9 +897,19 @@ private boolean simulateArenaStep() {
                 shipReward = calculateConsolationReward(ship);
             }
 
-            breakdown.shipRewards.add(new ArenaPanelUI.RewardBreakdown.ShipRewardInfo(
+            ArenaPanelUI.RewardBreakdown.ShipRewardInfo shipInfo = new ArenaPanelUI.RewardBreakdown.ShipRewardInfo(
                 ship.hullName, betAmount, ship.kills, ship.finalPosition, !ship.isDead, shipReward
-            ));
+            );
+            
+            for (BetInfo bet : arenaBets) {
+                if (bet.ship == ship) {
+                    shipInfo.betDetails.add(new ArenaPanelUI.RewardBreakdown.ShipRewardInfo.BetDetail(
+                        bet.roundPlaced, bet.multiplier, bet.amount
+                    ));
+                }
+            }
+            
+            breakdown.shipRewards.add(shipInfo);
         }
 
         return breakdown;
@@ -959,7 +945,7 @@ private boolean simulateArenaStep() {
 
         battleLog.addAll(logEntries);
 
-        if (logEntries.isEmpty() && aliveCount <= 1) {
+        if (aliveCount <= 1) {
             finishArenaBattle();
         } else {
             delegate.updateForBattle(arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog);
@@ -995,7 +981,7 @@ private boolean simulateArenaStep() {
 
             battleLog.addAll(logEntries);
             
-            result = !(logEntries.isEmpty() && aliveCount <= 1);
+            result = aliveCount > 1;
         } while (result);
         
         finishArenaBattle();
@@ -1035,11 +1021,6 @@ private boolean simulateArenaStep() {
         delegate.resetForNewMatch(arenaCombatants, currentRound, getCurrentTotalBet(), arenaBets, battleLog);
     }
 
-    /**
-     * Calculates final positions for all combatants based on survival time.
-     * Winner gets position 0, last eliminated gets position 1, etc.
-     * Ships eliminated in the same round share the same position.
-     */
     private void calculateFinalPositions(SpiralAbyssArena.SpiralGladiator winner) {
         if (winner != null) {
             winner.finalPosition = 0;
@@ -1111,10 +1092,10 @@ private boolean simulateArenaStep() {
 
     private int calculateWinReward(SpiralAbyssArena.SpiralGladiator ship) {
         int reward = 0;
-        float performanceMultiplier = calculatePerformanceMultiplier(ship);
 
         for (BetInfo bet : arenaBets) {
             if (bet.ship == ship) {
+                float performanceMultiplier = calculatePerformanceMultiplier(ship, bet.roundPlaced);
                 float effectiveMultiplier = calculateEffectiveMultiplier(bet.multiplier, performanceMultiplier);
                 reward += (int)(bet.amount * effectiveMultiplier);
             }
@@ -1141,20 +1122,17 @@ private boolean simulateArenaStep() {
     }
     
     /**
-     * Calculates the kill bonus factor for consolation, with diminishing returns
-     * for bets placed in later rounds to prevent exploitation.
+     * Calculates the kill bonus factor for consolation.
+     * Kill bonus only applies to bets placed before battle started (round 0).
      * 
      * @param roundPlaced The round when the bet was placed
      * @param kills The number of kills the ship achieved
      * @return The kill bonus factor to add to consolation rate
      */
     private float calculateKillBonusFactor(int roundPlaced, int kills) {
-        if (kills <= 0) return 0.0f;
+        if (kills <= 0 || roundPlaced > 0) return 0.0f;
         
-        float roundDiminishing = 1.0f - (roundPlaced * CasinoConfig.ARENA_KILL_BONUS_DIMINISH_PER_ROUND);
-        roundDiminishing = Math.max(0.0f, roundDiminishing);
-        
-        return CasinoConfig.ARENA_KILL_BONUS_FLAT * kills * roundDiminishing;
+        return CasinoConfig.ARENA_KILL_BONUS_FLAT * kills;
     }
 
     private void startNewArenaMatch() {
@@ -1433,23 +1411,20 @@ private void performAddBetToChampion(int championIndex, int additionalAmount) {
         return total;
     }
 
-    /**
-     * Calculates the performance multiplier based on ship survival and kills
-     */
-    private float calculatePerformanceMultiplier(SpiralAbyssArena.SpiralGladiator ship) {
-        float survivalBonusMult = 1.0f + (ship.turnsSurvived * CasinoConfig.ARENA_SURVIVAL_BONUS_PER_TURN);
-        float killBonusMult = 1.0f + (ship.kills * CasinoConfig.ARENA_KILL_BONUS_PER_KILL);
+    private float calculatePerformanceMultiplier(SpiralAbyssArena.SpiralGladiator ship, int roundPlaced) {
+        float survivalBonusMult = 1.0f;
+        if (roundPlaced == 0) {
+            survivalBonusMult = 1.0f + (ship.turnsSurvived * CasinoConfig.ARENA_SURVIVAL_BONUS_PER_TURN);
+        }
+        
+        float killBonusMult = 1.0f;
+        if (roundPlaced == 0 && ship.kills > 0) {
+            killBonusMult = 1.0f + (ship.kills * CasinoConfig.ARENA_KILL_BONUS_PER_KILL);
+        }
+        
         return survivalBonusMult * killBonusMult;
     }
 
-    /**
-     * Calculates the effective multiplier for a bet considering frozen odds, performance and diminishing returns
-     * Minimum odds is 1.01 to ensure player always gets at least their bet back (minus house edge)
-     * 
-     * @param frozenOdds The odds at the time the bet was placed (frozen, includes HP and round-based adjustments)
-     * @param performanceMultiplier Multiplier from turns survived and kills
-     * @return The effective payout multiplier
-     */
     private float calculateEffectiveMultiplier(float frozenOdds, float performanceMultiplier) {
         float effectiveMultiplier = frozenOdds * performanceMultiplier;
         return Math.max(1.01f, effectiveMultiplier);
@@ -1589,9 +1564,6 @@ private void performAddBetToChampion(int championIndex, int additionalAmount) {
         main.getOptions().addOption(Strings.get("arena_resume.wait"), "arena_resume_wait");
     }
 
-    /**
-     * Finds a gladiator by their full name in the current combatants list.
-     */
     private SpiralAbyssArena.SpiralGladiator findGladiatorByName(String fullName) {
         for (SpiralAbyssArena.SpiralGladiator gladiator : arenaCombatants) {
             if (gladiator.fullName.equals(fullName)) {
@@ -1601,9 +1573,6 @@ private void performAddBetToChampion(int championIndex, int additionalAmount) {
         return null;
     }
 
-    /**
-     * Checks if there's a suspended arena game available to resume
-     */
     public boolean hasSuspendedArena() {
         com.fs.starfarer.api.campaign.rules.MemoryAPI mem = Global.getSector().getMemoryWithoutUpdate();
         String suspendedGameType = mem.getString(MEM_SUSPENDED_GAME_TYPE);

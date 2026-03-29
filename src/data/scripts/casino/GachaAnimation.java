@@ -16,11 +16,16 @@ import com.fs.starfarer.api.ui.ButtonAPI;
 import com.fs.starfarer.api.ui.CustomPanelAPI;
 import com.fs.starfarer.api.ui.PositionAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
+import com.fs.starfarer.api.ui.TooltipMakerAPI.ActionListenerDelegate;
 import com.fs.starfarer.api.util.FaderUtil;
 import com.fs.starfarer.api.util.Misc;
 import com.fs.starfarer.api.util.Pair;
 
-public class GachaAnimation extends BaseCustomUIPanelPlugin {
+import data.scripts.casino.shared.GachaUI;
+
+public class GachaAnimation extends BaseCustomUIPanelPlugin
+    implements ActionListenerDelegate
+{
 
     protected DialogCallbacks callbacks;
     protected CustomPanelAPI panel;
@@ -56,6 +61,10 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
     protected ButtonAPI closeButton;
     protected static final float CLOSE_BUTTON_W = 80f;
     protected static final float CLOSE_BUTTON_H = 30f;
+
+    private static final String SKIP_ACTION = "gacha_skip";
+
+    private boolean buttonsCreated = false;
 
     // Callback for when animation completes
     protected GachaAnimationCallback callback;
@@ -204,26 +213,23 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
         try {
             backgroundSprite = Global.getSettings().getSprite("graphics/campaign/map/screenFlash2.png");
         } catch (Exception e) {
-            // Background not found, that's okay
         }
 
-        // Create close button using UI element
-        createCloseButton();
+        createButtons();
     }
 
-    protected void createCloseButton() {
-        if (panel == null) return;
+    protected void createButtons() {
+        if (panel == null || buttonsCreated) return;
 
-        // Create a small panel for the close button
-        CustomPanelAPI buttonPanel = panel.createCustomPanel(CLOSE_BUTTON_W, CLOSE_BUTTON_H, null);
-        TooltipMakerAPI tooltip = buttonPanel.createUIElement(CLOSE_BUTTON_W, CLOSE_BUTTON_H, false);
+        TooltipMakerAPI btnTp = panel.createUIElement(CLOSE_BUTTON_W, CLOSE_BUTTON_H, false);
+        btnTp.setActionListenerDelegate(this);
+        panel.addUIElement(btnTp).inTR(10f, 10f);
 
-        // Add the skip button
-        closeButton = tooltip.addButton(Strings.get("gacha_animation.skip"), "skip", CLOSE_BUTTON_W, CLOSE_BUTTON_H, 0f);
+        closeButton = btnTp.addButton(Strings.get("gacha_animation.skip"), SKIP_ACTION, CLOSE_BUTTON_W, CLOSE_BUTTON_H, 0f);
+        closeButton.setQuickMode(true);
         closeButton.getPosition().inTL(0f, 0f);
 
-        buttonPanel.addUIElement(tooltip).inTL(0f, 0f);
-        panel.addComponent(buttonPanel).inTR(10f, 10f);
+        buttonsCreated = true;
     }
 
     public void positionChanged(PositionAPI position) {
@@ -279,23 +285,22 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
     private void drawRevealedItems(float alphaMult) {
         if (revealedItems.isEmpty()) return;
 
+        float cx = p.getCenterX();
+        float cy = p.getCenterY();
         int itemsPerColumn = (allItems.size() + 1) / COLUMNS;
-        float startX = centerX - COLUMN_SPACING / 2f - ITEM_WIDTH / 2f;
-        float startY = centerY + (itemsPerColumn - 1) * ROW_SPACING / 2f;
+        float startX = cx - COLUMN_SPACING / 2f - ITEM_WIDTH / 2f;
+        float startY = cy + (itemsPerColumn - 1) * ROW_SPACING / 2f;
 
         for (int i = 0; i < revealedItems.size(); i++) {
             GachaItem item = revealedItems.get(i);
 
             int col = i / itemsPerColumn;
             int row = i % itemsPerColumn;
-
             float itemX = startX + col * COLUMN_SPACING;
             float itemY = startY - row * ROW_SPACING;
 
-            // Calculate spinning rotation for the item
             float rotation = 0f;
             if (!item.isFixed) {
-                // Still spinning - calculate rotation based on spinTimer
                 float spinSpeed = item.getSpinSpeed();
                 rotation = item.spinTimer * spinSpeed;
             }
@@ -303,7 +308,6 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
             drawItem(item, itemX, itemY, rotation, alphaMult);
         }
 
-        // Draw particle bursts
         for (ParticleBurst burst : activeBursts) {
             burst.render(alphaMult);
         }
@@ -355,10 +359,9 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
         }
 
         // Draw star-shaped item background
-        drawStarShape(x, y, w, h, displayColor, alphaMult * bgAlpha);
+GachaUI.drawStarShape(x, y, w, h, displayColor, alphaMult * bgAlpha);
 
-        // Draw star-shaped border
-        drawStarShapeBorder(x, y, w, h, borderColor, alphaMult);
+        GachaUI.drawStarShapeBorder(x, y, w, h, borderColor, alphaMult);
 
         if (!item.isFixed) {
             GL11.glPopMatrix();
@@ -390,45 +393,7 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
             (int)(255 * glowAlpha * alphaMult)
         );
 
-        drawStarShape(x, y, glowW, glowH, glowColor, alphaMult);
-    }
-
-    private void drawStarShapeBorder(float x, float y, float width, float height, Color color, float alphaMult) {
-        float halfW = width / 2f;
-        float halfH = height / 2f;
-        float borderThickness = 2f;
-
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-
-        GL11.glColor4f(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f, alphaMult);
-
-        GL11.glBegin(GL11.GL_QUADS);
-
-        GL11.glVertex2f(x - borderThickness/2, y - halfH);
-        GL11.glVertex2f(x + borderThickness/2, y - halfH);
-        GL11.glVertex2f(x + borderThickness/2, y - halfH * 0.3f);
-        GL11.glVertex2f(x - borderThickness/2, y - halfH * 0.3f);
-
-        GL11.glVertex2f(x - borderThickness/2, y + halfH * 0.3f);
-        GL11.glVertex2f(x + borderThickness/2, y + halfH * 0.3f);
-        GL11.glVertex2f(x + borderThickness/2, y + halfH);
-        GL11.glVertex2f(x - borderThickness/2, y + halfH);
-
-        GL11.glVertex2f(x - halfW, y - borderThickness/2);
-        GL11.glVertex2f(x - halfW * 0.3f, y - borderThickness/2);
-        GL11.glVertex2f(x - halfW * 0.3f, y + borderThickness/2);
-        GL11.glVertex2f(x - halfW, y + borderThickness/2);
-
-        GL11.glVertex2f(x + halfW * 0.3f, y - borderThickness/2);
-        GL11.glVertex2f(x + halfW, y - borderThickness/2);
-        GL11.glVertex2f(x + halfW, y + borderThickness/2);
-        GL11.glVertex2f(x + halfW * 0.3f, y + borderThickness/2);
-
-        GL11.glEnd();
-
-        GL11.glColor4f(1f, 1f, 1f, 1f);
+        GachaUI.drawStarShape(x, y, glowW, glowH, glowColor, alphaMult);
     }
 
     private void drawItemRarityEffect(GachaItem item, float x, float y, float alphaMult) {
@@ -478,49 +443,9 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
 
         for (int i = 0; i < item.rarity; i++) {
             float starX = startX + i * starSpacing;
-            drawRatingStar(starX, y, starColor, alphaMult);
+            GachaUI.drawRatingStar(starX, y, 5f, starColor, alphaMult);
         }
     }
-
-    private void drawRatingStar(float x, float y, Color color, float alphaMult) {
-        float size = 5f;
-        float halfSize = size / 2f;
-        float quarterSize = size / 4f;
-
-        Misc.renderQuad(x - quarterSize, y - halfSize, quarterSize * 2, size, color, alphaMult);
-        Misc.renderQuad(x - halfSize, y - quarterSize, size, quarterSize * 2, color, alphaMult);
-    }
-
-    private void drawStarShape(float x, float y, float width, float height, Color color, float alphaMult) {
-        float halfW = width / 2f;
-        float halfH = height / 2f;
-
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-
-        GL11.glColor4f(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f, alphaMult);
-
-        GL11.glBegin(GL11.GL_TRIANGLE_FAN);
-
-        GL11.glVertex2f(x, y);
-
-        GL11.glVertex2f(x, y - halfH);
-        GL11.glVertex2f(x + halfW * 0.3f, y - halfH * 0.3f);
-        GL11.glVertex2f(x + halfW, y);
-        GL11.glVertex2f(x + halfW * 0.3f, y + halfH * 0.3f);
-        GL11.glVertex2f(x, y + halfH);
-        GL11.glVertex2f(x - halfW * 0.3f, y + halfH * 0.3f);
-        GL11.glVertex2f(x - halfW, y);
-        GL11.glVertex2f(x - halfW * 0.3f, y - halfH * 0.3f);
-        GL11.glVertex2f(x, y - halfH);
-
-        GL11.glEnd();
-
-        GL11.glColor4f(1f, 1f, 1f, 1f);
-    }
-
-
 
     public void advance(float amount) {
         if (p == null) return;
@@ -536,10 +461,9 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
                 // Check if spinning phase is complete (3 rotations worth of time)
                 if (item.spinTimer >= SPIN_DURATION) {
                     item.isFixed = true;
-                    item.spinTimer = SPIN_DURATION; // Cap at max
-
-                    // Trigger particle burst when item becomes fixed
+                    item.spinTimer = SPIN_DURATION;
                     triggerParticleBurst(item);
+                    waitingForClick = true;
                 }
             }
         }
@@ -602,13 +526,6 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
 
     public void processInput(List<InputEventAPI> events) {
         if (p == null) return;
-
-        // Check if close button was clicked
-        if (closeButton != null && closeButton.isChecked()) {
-            closeButton.setChecked(false);
-            closeAnimation();
-            return;
-        }
 
         for (InputEventAPI event : events) {
             if (event.isConsumed()) continue;
@@ -700,12 +617,22 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin {
         activeBursts.clear();
         waitingForClick = false;
 
-        // Reveal first item immediately
         revealNextItem();
     }
 
     public boolean isAnimationComplete() {
         return animationComplete;
+    }
+
+    @Override
+    public void actionPerformed(Object actionId, Object source) {
+        Object data = actionId;
+        if (source instanceof ButtonAPI btn) {
+            data = btn.getCustomData();
+        }
+        if (SKIP_ACTION.equals(data)) {
+            closeAnimation();
+        }
     }
 
 }

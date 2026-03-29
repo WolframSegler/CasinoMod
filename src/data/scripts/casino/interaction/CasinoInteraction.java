@@ -10,12 +10,6 @@ import data.scripts.casino.Strings;
 import java.awt.Color;
 import java.util.Map;
 
-/**
- * Main interaction dialog plugin for the Interastral Peace Casino.
- * Routes player selections to specialized handlers for each game/feature.
- * State machine tracks current screen for navigation. Poker and Arena games
- * can be suspended mid-game and resumed later via sector memory.
- */
 public class CasinoInteraction implements InteractionDialogPlugin {
 
     protected InteractionDialogAPI dialog;
@@ -24,6 +18,7 @@ public class CasinoInteraction implements InteractionDialogPlugin {
 
     protected final GachaHandler gacha;
     protected final PokerHandler poker;
+    protected final BlackjackHandler blackjack;
     protected final ArenaHandler arena;
     protected final FinHandler financial;
     protected final TopupHandler topup;
@@ -35,6 +30,7 @@ public class CasinoInteraction implements InteractionDialogPlugin {
         MAIN_MENU,
         GACHA,
         POKER,
+        BLACKJACK,
         ARENA,
         FINANCIAL,
         TOPUP,
@@ -50,6 +46,7 @@ public class CasinoInteraction implements InteractionDialogPlugin {
     public CasinoInteraction() {
         this.gacha = new GachaHandler(this);
         this.poker = new PokerHandler(this);
+        this.blackjack = new BlackjackHandler(this);
         this.arena = new ArenaHandler(this);
         this.financial = new FinHandler(this);
         this.topup = new TopupHandler(this);
@@ -87,6 +84,7 @@ public class CasinoInteraction implements InteractionDialogPlugin {
 
         options.addOption(Strings.get("main_menu.btn_gacha"), "gacha_menu");
         options.addOption(Strings.get("main_menu.btn_poker"), "play");
+        options.addOption(Strings.get("main_menu.btn_blackjack"), "blackjack_play");
         options.addOption(Strings.get("main_menu.btn_arena"), "arena_visual_panel");
         options.addOption(Strings.get("main_menu.btn_topup"), "topup_menu");
         options.addOption(Strings.get("main_menu.btn_financial"), "financial_menu");
@@ -113,6 +111,8 @@ public class CasinoInteraction implements InteractionDialogPlugin {
             gacha.handle(option);
         } else if (option.startsWith("play") || option.startsWith("poker_") || option.startsWith("confirm_poker") || option.startsWith("next_hand") || option.equals("confirm_overdraft") || option.equals("cancel_overdraft")) {
             poker.handle(option);
+        } else if (option.startsWith("blackjack_")) {
+            blackjack.handle(option);
         } else if (option.startsWith("arena_")) {
             arena.handle(option);
         } else if (option.startsWith("topup_") || option.startsWith("topup_pack_") || option.startsWith("confirm_topup_pack_") || option.startsWith("buy_vip_from_topup") || option.startsWith("confirm_buy_vip_topup")) {

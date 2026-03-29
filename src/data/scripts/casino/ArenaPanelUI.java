@@ -104,8 +104,23 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
             }
         }
         
-        void parseAttackLine(String line, List<SpiralGladiator> combatants) {
-            if (combatants == null) return;
+        private static final Pattern DAMAGE_PATTERN = Pattern.compile("(\\d+)");
+        private static final Pattern EVENT_DAMAGE_PATTERN = Pattern.compile("\\(-?(\\d+)");
+        
+        private int extractDamage(String line, Pattern pattern) {
+            Matcher matcher = pattern.matcher(line);
+            if (matcher.find()) {
+                try {
+                    return Integer.parseInt(matcher.group(1));
+                } catch (NumberFormatException e) {
+                    return 0;
+                }
+            }
+            return 0;
+        }
+        
+        private SpiralGladiator[] findShipsByPosition(String line, List<SpiralGladiator> combatants) {
+            if (combatants == null || line == null) return new SpiralGladiator[2];
             
             int firstPos = Integer.MAX_VALUE;
             int secondPos = Integer.MAX_VALUE;
@@ -126,134 +141,54 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
                     }
                 }
             }
-            
-            if (firstShip != null) {
-                attackerHullId = firstShip.hullId;
-            }
-            if (secondShip != null) {
-                targetHullId = secondShip.hullId;
-            }
-            
-            final Pattern dmgPattern = Pattern.compile("(\\d+)");
-            final Matcher matcher = dmgPattern.matcher(line);
-            if (matcher.find()) {
-                try {
-                    damage = Integer.parseInt(matcher.group(1));
-                } catch (NumberFormatException e) {
-                    damage = 0;
-                }
-            }
+            return new SpiralGladiator[] { firstShip, secondShip };
+        }
+        
+        void parseAttackLine(String line, List<SpiralGladiator> combatants) {
+            SpiralGladiator[] ships = findShipsByPosition(line, combatants);
+            if (ships[0] != null) attackerHullId = ships[0].hullId;
+            if (ships[1] != null) targetHullId = ships[1].hullId;
+            damage = extractDamage(line, DAMAGE_PATTERN);
         }
         
         void parseKillLine(String line, List<SpiralGladiator> combatants) {
-            if (combatants == null) return;
-            
-            int firstPos = Integer.MAX_VALUE;
-            int secondPos = Integer.MAX_VALUE;
-            SpiralGladiator firstShip = null;
-            SpiralGladiator secondShip = null;
-            
-            for (SpiralGladiator ship : combatants) {
-                int pos = line.indexOf(ship.shortName);
-                if (pos >= 0) {
-                    if (pos < firstPos) {
-                        secondPos = firstPos;
-                        secondShip = firstShip;
-                        firstPos = pos;
-                        firstShip = ship;
-                    } else if (pos < secondPos && !ship.hullId.equals(firstShip.hullId)) {
-                        secondPos = pos;
-                        secondShip = ship;
-                    }
-                }
-            }
-            
-            if (firstShip != null) {
-                attackerHullId = firstShip.hullId;
-            }
-            if (secondShip != null) {
-                targetHullId = secondShip.hullId;
-            }
+            SpiralGladiator[] ships = findShipsByPosition(line, combatants);
+            if (ships[0] != null) attackerHullId = ships[0].hullId;
+            if (ships[1] != null) targetHullId = ships[1].hullId;
         }
         
         void parseMissLine(String line, List<SpiralGladiator> combatants) {
-            if (combatants == null) return;
-            
-            int firstPos = Integer.MAX_VALUE;
-            int secondPos = Integer.MAX_VALUE;
-            SpiralGladiator firstShip = null;
-            SpiralGladiator secondShip = null;
-            
-            for (SpiralGladiator ship : combatants) {
-                int pos = line.indexOf(ship.shortName);
-                if (pos >= 0) {
-                    if (pos < firstPos) {
-                        secondPos = firstPos;
-                        secondShip = firstShip;
-                        firstPos = pos;
-                        firstShip = ship;
-                    } else if (pos < secondPos && !ship.hullId.equals(firstShip.hullId)) {
-                        secondPos = pos;
-                        secondShip = ship;
-                    }
-                }
-            }
-            
-            // For miss lines: first ship = TARGET, second ship = ATTACKER
-            if (firstShip != null) {
-                targetHullId = firstShip.hullId;
-            }
-            if (secondShip != null) {
-                attackerHullId = secondShip.hullId;
-            }
+            SpiralGladiator[] ships = findShipsByPosition(line, combatants);
+            if (ships[0] != null) targetHullId = ships[0].hullId;
+            if (ships[1] != null) attackerHullId = ships[1].hullId;
         }
         
         void parseEventLine(String line, List<SpiralGladiator> combatants) {
             description = line;
             
-            if (combatants == null) return;
-            
-            for (SpiralGladiator ship : combatants) {
-                if (line.contains(ship.shortName)) {
-                    attackerHullId = ship.hullId;
-                    break;
+            if (combatants != null) {
+                for (SpiralGladiator ship : combatants) {
+                    if (line.contains(ship.shortName)) {
+                        attackerHullId = ship.hullId;
+                        break;
+                    }
                 }
             }
             
-            final Pattern dmgPattern = Pattern.compile("\\(-?(\\d+)");
-            final Matcher matcher = dmgPattern.matcher(line);
-            if (matcher.find()) {
-                try {
-                    damage = Integer.parseInt(matcher.group(1));
-                } catch (NumberFormatException e) {
-                    damage = 0;
-                }
-            }
+            damage = extractDamage(line, EVENT_DAMAGE_PATTERN);
         }
         
         void parseEventHitLine(String line, List<SpiralGladiator> combatants) {
-            if (combatants == null) return;
-            
-            for (SpiralGladiator ship : combatants) {
-                if (line.contains(ship.shortName)) {
-                    attackerHullId = ship.hullId;
-                    break;
+            if (combatants != null) {
+                for (SpiralGladiator ship : combatants) {
+                    if (line.contains(ship.shortName)) {
+                        attackerHullId = ship.hullId;
+                        break;
+                    }
                 }
             }
             
-            final Pattern dmgPattern = Pattern.compile("(\\d+)");
-            final Matcher matcher = dmgPattern.matcher(line);
-            if (matcher.find()) {
-                try {
-                    damage = Integer.parseInt(matcher.group(1));
-                } catch (NumberFormatException e) {
-                    damage = 0;
-                }
-            }
-        }
-        
-        boolean shouldSkipDeadAttacker() {
-            return false;
+            damage = extractDamage(line, DAMAGE_PATTERN);
         }
     }
 
@@ -398,16 +333,19 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     
 protected LabelAPI instructionLabel;
 
-    protected CustomPanelAPI watchNextPanel;
-    protected CustomPanelAPI nextGamePanel;
-    protected CustomPanelAPI skipToEndPanel;
-    protected CustomPanelAPI addBetPanel;
-    protected CustomPanelAPI suspendPanel;
-    protected CustomPanelAPI leaveButtonPanel;
-    protected CustomPanelAPI startBattlePanel;
+    protected ButtonAPI watchNextButton;
+    protected ButtonAPI nextGameButton;
+    protected ButtonAPI skipToEndButton;
+    protected ButtonAPI addBetButton;
+    protected ButtonAPI suspendButton;
+    protected ButtonAPI leaveButton;
+    protected ButtonAPI startBattleButton;
     
-    protected final List<CustomPanelAPI> championSelectPanels = new ArrayList<>();
-    protected final List<CustomPanelAPI> betAmountPanels = new ArrayList<>();
+    protected final List<ButtonAPI> championSelectButtons = new ArrayList<>();
+    protected final List<ButtonAPI> betAmountButtons = new ArrayList<>();
+    
+    protected TooltipMakerAPI buttonTooltip;
+    protected boolean buttonsCreated = false;
     
     protected static final int[] BET_AMOUNTS = {100, 500, 1000, 2000, 5000};
     
@@ -430,9 +368,9 @@ protected LabelAPI instructionLabel;
     protected LabelAPI balanceLabel;
     protected LabelAPI messageLabel;
     
-    protected CustomPanelAPI confirmOverdraftPanel;
-    protected CustomPanelAPI cancelOverdraftPanel;
-    protected CustomPanelAPI dismissErrorPanel;
+    protected ButtonAPI confirmOverdraftButton;
+    protected ButtonAPI cancelOverdraftButton;
+    protected ButtonAPI dismissErrorButton;
     
     protected float logX;
     protected float logY;
@@ -453,6 +391,15 @@ protected LabelAPI instructionLabel;
     protected int[] lastShipBetCount = new int[5];
     protected String[] lastShipHullIds = new String[5];
     protected boolean shipStateInitialized = false;
+
+    // Label caching (prevent redundant per-frame updates)
+    protected int lastBalance = Integer.MIN_VALUE;
+    protected int lastAvailableCredit = Integer.MIN_VALUE;
+    protected int lastCreditCeiling = Integer.MIN_VALUE;
+    protected boolean lastIsVIP = false;
+    protected String lastInstructionText = null;
+    protected boolean lastInstructionHidden = false;
+    protected boolean rewardBreakdownCached = false;
 
     // Battle Log Animation State
     protected float logAnimationTimer = 0f;
@@ -526,6 +473,19 @@ protected LabelAPI instructionLabel;
             public int finalPosition;
             public boolean isWinner;
             public int reward;
+            public List<BetDetail> betDetails = new ArrayList<>();
+            
+            public static class BetDetail {
+                public int roundPlaced;
+                public float multiplier;
+                public int amount;
+                
+                public BetDetail(int roundPlaced, float multiplier, int amount) {
+                    this.roundPlaced = roundPlaced;
+                    this.multiplier = multiplier;
+                    this.amount = amount;
+                }
+            }
             
             public ShipRewardInfo(String shipName, int betAmount, int kills, int finalPosition, boolean isWinner, int reward) {
                 this.shipName = shipName;
@@ -553,9 +513,14 @@ protected LabelAPI instructionLabel;
         this.battleLog = battleLog;
         this.actionCallback = callback;
         
-        }
+}
     
-    protected SpriteAPI getShipSprite(String hullId) {
+    private boolean isShipEffectivelyDead(SpiralGladiator ship) {
+        if (ship == null) return false;
+        return killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead);
+    }
+    
+protected SpriteAPI getShipSprite(String hullId) {
         if (hullId == null || hullId.isEmpty()) return null;
         
         if (spriteCache.containsKey(hullId)) {
@@ -563,7 +528,7 @@ protected LabelAPI instructionLabel;
         }
         
         try {
-            ShipHullSpecAPI spec = Global.getSettings().getHullSpec(hullId);
+            ShipHullSpecAPI spec = settings.getHullSpec(hullId);
             if (spec == null) {
                 spriteCache.put(hullId, null);
                 return null;
@@ -575,7 +540,7 @@ protected LabelAPI instructionLabel;
                 return null;
             }
             
-            SpriteAPI sprite = Global.getSettings().getSprite(spriteName);
+            SpriteAPI sprite = settings.getSprite(spriteName);
             spriteCache.put(hullId, sprite);
             return sprite;
         } catch (Exception e) {
@@ -859,7 +824,11 @@ protected LabelAPI instructionLabel;
     }
     
     protected void createAllButtonsOnce() {
-        if (panel == null) return;
+        if (panel == null || buttonsCreated) return;
+        
+        buttonTooltip = panel.createUIElement(PANEL_WIDTH, PANEL_HEIGHT, false);
+        buttonTooltip.setActionListenerDelegate(this);
+        panel.addUIElement(buttonTooltip).inTL(0, 0);
         
         final float startY = MARGIN + 10f;
         final float NAME_HEIGHT = 16f;
@@ -871,150 +840,102 @@ protected LabelAPI instructionLabel;
             final float shipY = startY + i * totalItemHeight;
             final float buttonY = shipY + (BOX_HEIGHT - CHAMP_BUTTON_HEIGHT) / 2f;
             
-            final CustomPanelAPI champPanel = panel.createCustomPanel(CHAMP_BUTTON_WIDTH, CHAMP_BUTTON_HEIGHT, null);
-            final TooltipMakerAPI champTooltip = champPanel.createUIElement(CHAMP_BUTTON_WIDTH, CHAMP_BUTTON_HEIGHT, false);
-            champTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = champTooltip.addButton(Strings.get("arena_panel.select"), ARENA_SELECT_DATA + i, CHAMP_BUTTON_WIDTH, CHAMP_BUTTON_HEIGHT, 0f);
+            final ButtonAPI btn = buttonTooltip.addButton(
+                Strings.get("arena_panel.select"), 
+                ARENA_SELECT_DATA + i, 
+                CHAMP_BUTTON_WIDTH, CHAMP_BUTTON_HEIGHT, 0f
+            );
             btn.setQuickMode(true);
-            btn.getPosition().inTL(0, 0);
-            champPanel.addUIElement(champTooltip).inTL(0, 0);
-            panel.addComponent(champPanel).inTL(CHAMP_BUTTON_X, buttonY);
-            champPanel.setOpacity(0f);
-            championSelectPanels.add(champPanel);
+            btn.getPosition().inTL(CHAMP_BUTTON_X, buttonY);
+            btn.setOpacity(0f);
+            championSelectButtons.add(btn);
         }
         
-        final CustomPanelAPI betCancelPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-        final TooltipMakerAPI betCancelTooltip = betCancelPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-        betCancelTooltip.setActionListenerDelegate(this);
-        betCancelTooltip.addButton(Strings.get("common.cancel"), ARENA_BET_CANCEL, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-        betCancelPanel.addUIElement(betCancelTooltip).inTL(0, 0);
-        panel.addComponent(betCancelPanel).inTL(leftX, bottomY);
-        betCancelPanel.setOpacity(0f);
-        betAmountPanels.add(betCancelPanel);
+        // Cancel button (index 0 in betAmountButtons)
+        final ButtonAPI cancelBtn = buttonTooltip.addButton(
+            Strings.get("common.cancel"), 
+            ARENA_BET_CANCEL, 
+            BUTTON_WIDTH, BUTTON_HEIGHT, 0f
+        );
+        cancelBtn.getPosition().inTL(leftX, bottomY);
+        cancelBtn.setOpacity(0f);
+        betAmountButtons.add(cancelBtn);
         
+        // Bet amount buttons (indices 1-5)
         for (int i = 0; i < BET_AMOUNTS.length; i++) {
             final int amt = BET_AMOUNTS[i];
             final float btnX = leftX + i * (BUTTON_WIDTH + BUTTON_SPACING);
             
-            final CustomPanelAPI betBtnPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI betTooltip = betBtnPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            betTooltip.setActionListenerDelegate(this);
-            betTooltip.addButton(Strings.format("arena_panel.sg", amt), ARENA_BET_DATA + amt, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            betBtnPanel.addUIElement(betTooltip);
-            panel.addComponent(betBtnPanel).inTL(btnX, bottomY - BUTTON_HEIGHT - BUTTON_SPACING);
-            betBtnPanel.setOpacity(0f);
-            betAmountPanels.add(betBtnPanel);
-        }
-
-        { // Leave Button
-            leaveButtonPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI leaveTooltip = leaveButtonPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            leaveTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = leaveTooltip.addButton(Strings.get("common.leave"), ARENA_LEAVE_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            leaveButtonPanel.addUIElement(leaveTooltip).inTL(0, 0);
-            panel.addComponent(leaveButtonPanel).inTL(leftX, bottomY);
-            leaveButtonPanel.setOpacity(0f);
+            final ButtonAPI btn = buttonTooltip.addButton(
+                Strings.format("arena_panel.sg", amt), 
+                ARENA_BET_DATA + amt, 
+                BUTTON_WIDTH, BUTTON_HEIGHT, 0f
+            );
+            btn.getPosition().inTL(btnX, bottomY - BUTTON_HEIGHT - BUTTON_SPACING);
+            btn.setOpacity(0f);
+            betAmountButtons.add(btn);
         }
         
-        { // Suspend Button
-            suspendPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI suspendTooltip = suspendPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            suspendTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = suspendTooltip.addButton(Strings.get("arena_panel.suspend"), ARENA_SUSPEND_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            suspendPanel.addUIElement(suspendTooltip).inTL(0, 0);
-            panel.addComponent(suspendPanel).inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
-            suspendPanel.setOpacity(0f);
-        }
+        leaveButton = buttonTooltip.addButton(Strings.get("common.leave"), ARENA_LEAVE_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        leaveButton.setQuickMode(true);
+        leaveButton.getPosition().inTL(leftX, bottomY);
+        leaveButton.setOpacity(0f);
         
-        { // Add Bet Button
-            addBetPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI addBetTooltip = addBetPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            addBetTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = addBetTooltip.addButton(Strings.get("arena_panel.add_bet"), ARENA_ADD_BET_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            addBetPanel.addUIElement(addBetTooltip).inTL(0, 0);
-            panel.addComponent(addBetPanel).inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 2, bottomY);
-            addBetPanel.setOpacity(0f);
-        }
+        suspendButton = buttonTooltip.addButton(Strings.get("arena_panel.suspend"), ARENA_SUSPEND_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        suspendButton.setQuickMode(true);
+        suspendButton.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
+        suspendButton.setOpacity(0f);
         
-        { // Skip to End Button
-            skipToEndPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI skipTooltip = skipToEndPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            skipTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = skipTooltip.addButton(Strings.get("arena_panel.skip_to_end"), ARENA_SKIP_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            skipToEndPanel.addUIElement(skipTooltip).inTL(0, 0);
-            panel.addComponent(skipToEndPanel).inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 3, bottomY);
-            skipToEndPanel.setOpacity(0f);
-        }
-
-        { // Watch Next Button
-            watchNextPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI watchTooltip = watchNextPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            watchTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = watchTooltip.addButton(Strings.get("arena_panel.next_round"), NEXT_ROUND_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            watchNextPanel.addUIElement(watchTooltip).inTL(0, 0);
-            panel.addComponent(watchNextPanel).inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 4, bottomY);
-            watchNextPanel.setOpacity(0f);
-        }
+        addBetButton = buttonTooltip.addButton(Strings.get("arena_panel.add_bet"), ARENA_ADD_BET_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        addBetButton.setQuickMode(true);
+        addBetButton.getPosition().inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 2, bottomY);
+        addBetButton.setOpacity(0f);
         
-        { // Next Game Button
-            nextGamePanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI nextGameTooltip = nextGamePanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            nextGameTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = nextGameTooltip.addButton(Strings.get("arena_panel.next_game"), NEXT_GAME_DATA, Color.BLACK, DISABLED_BTN_COLOR, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            nextGamePanel.addUIElement(nextGameTooltip).inTL(0, 0);
-            panel.addComponent(nextGamePanel).inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
-            nextGamePanel.setOpacity(0f);
-        }
-
-        { // Start Battle Button
-            startBattlePanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI startTooltip = startBattlePanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            startTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = startTooltip.addButton(Strings.get("arena_panel.start_battle"), ARENA_START_BATTLE_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            startBattlePanel.addUIElement(startTooltip).inTL(0, 0);
-            panel.addComponent(startBattlePanel).inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
-            startBattlePanel.setOpacity(0f);
-        }
+        skipToEndButton = buttonTooltip.addButton(Strings.get("arena_panel.skip_to_end"), ARENA_SKIP_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        skipToEndButton.setQuickMode(true);
+        skipToEndButton.getPosition().inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 3, bottomY);
+        skipToEndButton.setOpacity(0f);
         
-        { // Confirm Overdraft Button
-            confirmOverdraftPanel = panel.createCustomPanel(BUTTON_WIDTH + 30f, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI confirmTooltip = confirmOverdraftPanel.createUIElement(BUTTON_WIDTH + 30f, BUTTON_HEIGHT, false);
-            confirmTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = confirmTooltip.addButton(Strings.get("arena_panel.confirm_overdraft"), "arena_confirm_overdraft", BUTTON_WIDTH + 30f, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            confirmOverdraftPanel.addUIElement(confirmTooltip).inTL(0, 0);
-            panel.addComponent(confirmOverdraftPanel).inTL(leftX, bottomY);
-            confirmOverdraftPanel.setOpacity(0f);
-        }
+        watchNextButton = buttonTooltip.addButton(Strings.get("arena_panel.next_round"), NEXT_ROUND_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        watchNextButton.setQuickMode(true);
+        watchNextButton.getPosition().inTL(leftX + (BUTTON_WIDTH + BUTTON_SPACING) * 4, bottomY);
+        watchNextButton.setOpacity(0f);
         
-        { // Cancel Overdraft Button
-            cancelOverdraftPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI cancelTooltip = cancelOverdraftPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            cancelTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = cancelTooltip.addButton(Strings.get("common.cancel"), "arena_cancel_overdraft", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            cancelOverdraftPanel.addUIElement(cancelTooltip).inTL(0, 0);
-            panel.addComponent(cancelOverdraftPanel).inTL(leftX + BUTTON_WIDTH + 40f + BUTTON_SPACING, bottomY);
-            cancelOverdraftPanel.setOpacity(0f);
-        }
+        nextGameButton = buttonTooltip.addButton(
+            Strings.get("arena_panel.next_game"), 
+            NEXT_GAME_DATA, 
+            Color.BLACK, DISABLED_BTN_COLOR, 
+            BUTTON_WIDTH, BUTTON_HEIGHT, 0f
+        );
+        nextGameButton.setQuickMode(true);
+        nextGameButton.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
+        nextGameButton.setOpacity(0f);
         
-        { // Dismiss Error Button
-            dismissErrorPanel = panel.createCustomPanel(BUTTON_WIDTH, BUTTON_HEIGHT, null);
-            final TooltipMakerAPI dismissTooltip = dismissErrorPanel.createUIElement(BUTTON_WIDTH, BUTTON_HEIGHT, false);
-            dismissTooltip.setActionListenerDelegate(this);
-            final ButtonAPI btn = dismissTooltip.addButton(Strings.get("common.ok"), "arena_dismiss_error", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
-            btn.setQuickMode(true);
-            dismissErrorPanel.addUIElement(dismissTooltip).inTL(0, 0);
-            panel.addComponent(dismissErrorPanel).inTL((PANEL_WIDTH - BUTTON_WIDTH) / 2f, bottomY);
-            dismissErrorPanel.setOpacity(0f);
-        }
+        startBattleButton = buttonTooltip.addButton(Strings.get("arena_panel.start_battle"), ARENA_START_BATTLE_DATA, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        startBattleButton.setQuickMode(true);
+        startBattleButton.getPosition().inTL(leftX + BUTTON_WIDTH + BUTTON_SPACING, bottomY);
+        startBattleButton.setOpacity(0f);
+        
+        confirmOverdraftButton = buttonTooltip.addButton(
+            Strings.get("arena_panel.confirm_overdraft"), 
+            "arena_confirm_overdraft", 
+            BUTTON_WIDTH + 30f, BUTTON_HEIGHT, 0f
+        );
+        confirmOverdraftButton.setQuickMode(true);
+        confirmOverdraftButton.getPosition().inTL(leftX, bottomY);
+        confirmOverdraftButton.setOpacity(0f);
+        
+        cancelOverdraftButton = buttonTooltip.addButton(Strings.get("common.cancel"), "arena_cancel_overdraft", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        cancelOverdraftButton.setQuickMode(true);
+        cancelOverdraftButton.getPosition().inTL(leftX + BUTTON_WIDTH + 40f + BUTTON_SPACING, bottomY);
+        cancelOverdraftButton.setOpacity(0f);
+        
+        dismissErrorButton = buttonTooltip.addButton(Strings.get("common.ok"), "arena_dismiss_error", BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
+        dismissErrorButton.setQuickMode(true);
+        dismissErrorButton.getPosition().inTL((PANEL_WIDTH - BUTTON_WIDTH) / 2f, bottomY);
+        dismissErrorButton.setOpacity(0f);
+        
+        buttonsCreated = true;
     }
     
     protected void updateButtonVisibility() {
@@ -1024,79 +945,79 @@ protected LabelAPI instructionLabel;
         final boolean showChampionAsBet = currentRound > 0 && showingBetAmounts && addingBetDuringBattle && selectedChampionIndex < 0 && !showingOverdraftConfirmation && !showingErrorMessage;
         final boolean showBetAmounts = showingBetAmounts && selectedChampionIndex >= 0 && !battleEnded && !showingOverdraftConfirmation && !showingErrorMessage;
         
-        for (int i = 0; i < championSelectPanels.size(); i++) {
-            final CustomPanelAPI p = championSelectPanels.get(i);
-            if (p == null) continue;
+        for (int i = 0; i < championSelectButtons.size(); i++) {
+            final ButtonAPI btn = championSelectButtons.get(i);
+            if (btn == null) continue;
 
             if (i < 5) {
                 final boolean btnVis = (showChampionSelect || showChampionAsBet) && canBetMoreOnShip(i);
-                p.setOpacity(btnVis ? 1f : 0f);
+                btn.setOpacity(btnVis ? 1f : 0f);
             } else {
-                p.setOpacity(showChampionSelect ? 1f : 0f);
+                btn.setOpacity(showChampionSelect ? 1f : 0f);
             }
         }
         
-        for (int i = 0; i < betAmountPanels.size(); i++) {
-            final CustomPanelAPI p = betAmountPanels.get(i);
-            if (p == null) continue;
+        for (int i = 0; i < betAmountButtons.size(); i++) {
+            final ButtonAPI btn = betAmountButtons.get(i);
+            if (btn == null) continue;
 
             if (showBetAmounts) {
                 if (i == 0) {
-                    p.setOpacity(1f);
+                    btn.setOpacity(1f);
                 } else {
                     final int betAmount = BET_AMOUNTS[i - 1];
                     final int currentBetOnShip = getTotalBetOnShip(selectedChampionIndex);
-                    p.setOpacity(currentBetOnShip + betAmount > CasinoConfig.ARENA_MAX_BET_PER_CHAMPION ? 0f : 1f);
+                    btn.setOpacity(currentBetOnShip + betAmount > CasinoConfig.ARENA_MAX_BET_PER_CHAMPION ? 0f : 1f);
                 }
             } else {
-                p.setOpacity(0f);
+                btn.setOpacity(0f);
             }
         }
         
-        if (leaveButtonPanel != null) {
+        if (leaveButton != null) {
             boolean showLeave = false;
             if (battleEnded) {
                 showLeave = true;
             } else if (!showingOverdraftConfirmation && !showingErrorMessage) {
                 showLeave = !showingBetAmounts;
             }
-            leaveButtonPanel.setOpacity(showLeave ? 1f : 0f);
+            leaveButton.setOpacity(showLeave ? 1f : 0f);
         }
         
-        if (suspendPanel != null) {
-            suspendPanel.setOpacity(!battleEnded && currentRound > 0 && !showingBetAmounts && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
+        if (suspendButton != null) {
+            suspendButton.setOpacity(!battleEnded && currentRound > 0 && !showingBetAmounts && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
         }
         
-        if (addBetPanel != null) {
-            addBetPanel.setOpacity(currentRound > 0 && !showingBetAmounts && !battleEnded && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
+        if (addBetButton != null) {
+            addBetButton.setOpacity(currentRound > 0 && !showingBetAmounts && !battleEnded && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
         }
         
-        if (skipToEndPanel != null) {
-            skipToEndPanel.setOpacity(currentRound > 0 && !showingBetAmounts && !battleEnded && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
+        if (skipToEndButton != null) {
+            skipToEndButton.setOpacity(currentRound > 0 && !showingBetAmounts && !battleEnded && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
         }
         
-        if (watchNextPanel != null) {
-            watchNextPanel.setOpacity(currentRound > 0 && !showingBetAmounts && !battleEnded && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
+        if (watchNextButton != null) {
+            watchNextButton.setOpacity(currentRound > 0 && !showingBetAmounts && !battleEnded && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
         }
         
-        if (nextGamePanel != null) {
-            nextGamePanel.setOpacity(battleEnded ? 1f : 0f);
+        if (nextGameButton != null) {
+            nextGameButton.setOpacity(battleEnded ? 1f : 0f);
         }
         
-        if (startBattlePanel != null) {
-            startBattlePanel.setOpacity(currentRound == 0 && !showingBetAmounts && totalBet > 0 && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
+        if (startBattleButton != null) {
+            startBattleButton.setOpacity(currentRound == 0 && !showingBetAmounts && totalBet > 0 && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
         }
         
-        if (confirmOverdraftPanel != null) {
-            confirmOverdraftPanel.setOpacity(showingOverdraftConfirmation ? 1f : 0f);
+        if (confirmOverdraftButton != null) {
+            confirmOverdraftButton.setOpacity(showingOverdraftConfirmation ? 1f : 0f);
         }
         
-        if (cancelOverdraftPanel != null) {
-            cancelOverdraftPanel.setOpacity(showingOverdraftConfirmation ? 1f : 0f);
+        if (cancelOverdraftButton != null) {
+            cancelOverdraftButton.setOpacity(showingOverdraftConfirmation ? 1f : 0f);
         }
         
-        if (dismissErrorPanel != null) {
-            dismissErrorPanel.setOpacity(showingErrorMessage ? 1f : 0f);
+        if (dismissErrorButton != null) {
+            dismissErrorButton.setOpacity(showingErrorMessage ? 1f : 0f);
         }
         
         if (messageLabel != null) {
@@ -1188,6 +1109,15 @@ protected LabelAPI instructionLabel;
         int availableCredit = CasinoVIPManager.getAvailableCredit();
         int creditCeiling = CasinoVIPManager.getCreditCeiling();
         boolean isVIP = CasinoVIPManager.isOverdraftAvailable();
+        
+        if (balance == lastBalance && availableCredit == lastAvailableCredit 
+            && creditCeiling == lastCreditCeiling && isVIP == lastIsVIP) {
+            return;
+        }
+        lastBalance = balance;
+        lastAvailableCredit = availableCredit;
+        lastCreditCeiling = creditCeiling;
+        lastIsVIP = isVIP;
         
         StringBuilder sb = new StringBuilder();
         Color balanceColor;
@@ -1374,7 +1304,7 @@ protected LabelAPI instructionLabel;
             int displayHp = (hpAnimating[i] || isAnimating) ? animatedHp[i] : ship.hp;
             float hpPercent;
             Color hpColor;
-            if (killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead)) {
+            if (isShipEffectivelyDead(ship)) {
                 hpPercent = 0.08f;
                 hpColor = COLOR_DESTROYED;
             } else {
@@ -1383,7 +1313,6 @@ protected LabelAPI instructionLabel;
             }
 
             if (i == selectedChampionIndex) {
-                GL11.glDisable(GL11.GL_TEXTURE_2D);
                 GL11.glColor4f(COLOR_SELECTED.getRed() / 255f, COLOR_SELECTED.getGreen() / 255f,
                     COLOR_SELECTED.getBlue() / 255f, alphaMult * 0.8f);
                 GL11.glBegin(GL11.GL_LINE_LOOP);
@@ -1400,7 +1329,6 @@ protected LabelAPI instructionLabel;
             float fillWidth = (BOX_WIDTH - 2) * hpPercent;
             Misc.renderQuad(renderX + 1, screenY + 1, fillWidth, BOX_HEIGHT - 2, hpColor, alphaMult * 0.6f * boxAlpha);
 
-            GL11.glDisable(GL11.GL_TEXTURE_2D);
             GL11.glColor4f(COLOR_BOX_BORDER.getRed() / 255f, COLOR_BOX_BORDER.getGreen() / 255f,
                 COLOR_BOX_BORDER.getBlue() / 255f, alphaMult * 0.8f * boxAlpha);
             GL11.glLineWidth(1f);
@@ -1436,7 +1364,7 @@ protected LabelAPI instructionLabel;
                     sprite.setColor(tint);
                     sprite.setAlphaMult(spriteAlpha);
                     sprite.setAdditiveBlend();
-                } else if (killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead)) {
+                } else if (isShipEffectivelyDead(ship)) {
                     tint = COLOR_TINT_DEAD;
                     spriteAlpha = 0.6f * alphaMult * boxAlpha;
                     sprite.setColor(tint);
@@ -1458,7 +1386,7 @@ protected LabelAPI instructionLabel;
                 sprite.renderAtCenter(centerX, centerY);
             }
 
-            if (killedHullIds.contains(ship.hullId) || (!isAnimating && ship.isDead)) {
+            if (isShipEffectivelyDead(ship)) {
                 GL11.glDisable(GL11.GL_TEXTURE_2D);
                 GL11.glColor4f(1f, 0f, 0f, alphaMult * boxAlpha * 0.8f);
                 GL11.glLineWidth(3f);
@@ -1502,21 +1430,27 @@ protected LabelAPI instructionLabel;
                 newInstructionText = Strings.get("arena_panel.select_champion_bet");
             } else if (currentRound > 0 && addingBetDuringBattle) {
                 SpiralGladiator selected = combatants.get(selectedChampionIndex);
-                newInstructionText = Strings.format("arena_panel.add_bet_on", selected.hullName);
+                newInstructionText = Strings.format("arena.add_bet_on", selected.hullName);
             } else if (currentRound > 0) {
                 newInstructionText = null;
                 hideInstruction = true;
             } else if (showingBetAmounts && selectedChampionIndex >= 0) {
                 SpiralGladiator selected = combatants.get(selectedChampionIndex);
-                newInstructionText = Strings.format("arena_panel.add_bet_on", selected.hullName);
+                newInstructionText = Strings.format("arena.add_bet_on", selected.hullName);
             } else {
                 newInstructionText = Strings.get("arena_panel.select_champion_bet");
             }
             
-            if (hideInstruction) {
-                instructionLabel.setText("");
-            } else {
-                instructionLabel.setText(newInstructionText);
+            if (hideInstruction != lastInstructionHidden || 
+                (newInstructionText == null && lastInstructionText != null) ||
+                (newInstructionText != null && !newInstructionText.equals(lastInstructionText))) {
+                lastInstructionText = newInstructionText;
+                lastInstructionHidden = hideInstruction;
+                if (hideInstruction) {
+                    instructionLabel.setText("");
+                } else {
+                    instructionLabel.setText(newInstructionText);
+                }
             }
         }
         
@@ -1625,15 +1559,26 @@ protected LabelAPI instructionLabel;
     }
     
     protected void updateRewardBreakdownLabels() {
+        if (!battleEnded || rewardBreakdown == null) {
+            if (!rewardBreakdownCached) {
+                for (int i = 0; i < MAX_REWARD_LINES; i++) {
+                    if (rewardBreakdownLabels[i] != null) {
+                        rewardBreakdownLabels[i].setText("");
+                    }
+                }
+            }
+            return;
+        }
+        
+        if (rewardBreakdownCached) return;
+        
+        if (rewardBreakdownLabels[0] == null) return;
+        
         for (int i = 0; i < MAX_REWARD_LINES; i++) {
             if (rewardBreakdownLabels[i] != null) {
                 rewardBreakdownLabels[i].setText("");
             }
         }
-        
-        if (!battleEnded || rewardBreakdown == null) return;
-        
-        if (rewardBreakdownLabels[0] == null) return;
         
         int lineIndex = 0;
         
@@ -1697,6 +1642,18 @@ protected LabelAPI instructionLabel;
                 rewardBreakdownLabels[lineIndex].setColor(rewardColor);
                 lineIndex++;
             }
+            
+            if (!shipInfo.betDetails.isEmpty() && lineIndex < MAX_REWARD_LINES) {
+                StringBuilder betDetailLine = new StringBuilder("  -> ");
+                for (int i = 0; i < shipInfo.betDetails.size(); i++) {
+                    RewardBreakdown.ShipRewardInfo.BetDetail bd = shipInfo.betDetails.get(i);
+                    if (i > 0) betDetailLine.append(", ");
+                    betDetailLine.append(Strings.format("arena_panel_rewards.bet_detail", bd.roundPlaced, bd.multiplier));
+                }
+                rewardBreakdownLabels[lineIndex].setText(betDetailLine.toString());
+                rewardBreakdownLabels[lineIndex].setColor(Color.GRAY);
+                lineIndex++;
+            }
         }
         
         int net = rewardBreakdown.netResult;
@@ -1704,6 +1661,7 @@ protected LabelAPI instructionLabel;
         String netStr = net >= 0 ? "+" + net : String.valueOf(net);
         rewardBreakdownLabels[lineIndex].setText(Strings.format("arena_panel_rewards.net", netStr));
         rewardBreakdownLabels[lineIndex].setColor(netColor);
+        rewardBreakdownCached = true;
     }
     
     protected void updateHullIdDeadStatus() {
@@ -1738,9 +1696,6 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         
         final List<ParsedLogEntry> filtered = new ArrayList<>();
         for (ParsedLogEntry entry : cachedParsedEntries) {
-            if (entry.shouldSkipDeadAttacker()) {
-                continue;
-            }
             if (entry.type.equals("STATUS") || entry.type.isEmpty()) {
                 continue;
             }
@@ -2202,6 +2157,7 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         this.selectedChampionIndex = -1;
         this.showingOverdraftConfirmation = false;
         this.showingErrorMessage = false;
+        this.rewardBreakdownCached = false;
         
         oddsCached = false;
         cacheOdds();
@@ -2220,6 +2176,7 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         this.selectedChampionIndex = -1;
         this.showingOverdraftConfirmation = false;
         this.showingErrorMessage = false;
+        this.rewardBreakdownCached = false;
         
         oddsCached = false;
         cacheOdds();
@@ -2274,6 +2231,7 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         this.winnerIndex = -1;
         this.totalReward = 0;
         this.rewardBreakdown = null;
+        this.rewardBreakdownCached = false;
         this.showingBetAmounts = false;
         this.addingBetDuringBattle = false;
         this.selectedChampionIndex = -1;
@@ -2293,6 +2251,12 @@ protected List<ParsedLogEntry> getFilteredEntries() {
         shipStateInitialized = false;
         lastCurrentRound = -1;
         lastTotalBet = -1;
+        lastBalance = Integer.MIN_VALUE;
+        lastAvailableCredit = Integer.MIN_VALUE;
+        lastCreditCeiling = Integer.MIN_VALUE;
+        lastIsVIP = false;
+        lastInstructionText = null;
+        lastInstructionHidden = false;
         for (int i = 0; i < 5; i++) {
             lastShipHp[i] = -1;
             lastShipMaxHp[i] = -1;

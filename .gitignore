@@ -2,13 +2,16 @@
 *.class
 
 # Package files
-*.jar
 *.war
 *.ear
 *.nar
 *.zip
 *.tar.gz
 *.rar
+
+# Jars - keep Casino.jar, ignore others in jars/
+jars/*.jar
+!jars/Casino.jar
 
 # Maven
 target/
@@ -75,3 +78,13 @@ Thumbs.db
 # Starsector/Mod Specific
 backup/
 *.bak
+
+# Project specific excludes
+AGENTS.md
+starsector reference api/
+plan/
+.trae/
+
+# Build outputs (keep Casino.jar)
+jars/classes/
+jars/generated-sources/

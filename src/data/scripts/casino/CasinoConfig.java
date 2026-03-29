@@ -11,14 +11,8 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.*;
 
-import static data.scripts.constants.Mods.*;
-
-/**
- * Configuration for Interastral Peace Casino mod.
- * All settings loaded from data/config/casino_settings.json.
- * Never modify values at runtime - use CasinoConfig.XXX to reference.
- */
 public class CasinoConfig {
+    public static final String MOD_ID = "interastral_peace_casino";
     private static final Logger log = Global.getLogger(CasinoConfig.class);
     private static final String CONFIG_PATH = "data/config/casino_settings.json";
     private static final String GACHA_SHIPS_BLACKLIST_CSV = "data/config/gacha_ships_blacklist.csv";
@@ -139,7 +133,7 @@ public class CasinoConfig {
 
     public static void loadSettings() {
         try {
-            JSONObject settings = Global.getSettings().loadJSON(CONFIG_PATH, CasionMod);
+            JSONObject settings = Global.getSettings().loadJSON(CONFIG_PATH, MOD_ID);
 
             // VIP settings
             VIP_DAILY_REWARD = settings.optInt("vipDailyReward", 100);
@@ -287,7 +281,7 @@ public class CasinoConfig {
     private static void loadGachaShipsBlacklist() {
         try {
             GACHA_SHIP_BLACKLIST_CSV.clear();
-            JSONArray csv = Global.getSettings().getMergedSpreadsheetDataForMod("id", GACHA_SHIPS_BLACKLIST_CSV, CasionMod);
+            JSONArray csv = Global.getSettings().getMergedSpreadsheetDataForMod("id", GACHA_SHIPS_BLACKLIST_CSV, MOD_ID);
             for (int i = 0; i < csv.length(); i++) {
                 JSONObject row = csv.getJSONObject(i);
                 String hullId = row.getString("id");

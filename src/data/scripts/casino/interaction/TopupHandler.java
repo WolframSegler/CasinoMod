@@ -9,10 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
-/**
- * Handler for Stargem top-up: purchasing gem packages with credits.
- * Package sizes and costs defined in CasinoConfig.GEM_PACKAGES.
- */
 public class TopupHandler {
 
     private final CasinoInteraction main;

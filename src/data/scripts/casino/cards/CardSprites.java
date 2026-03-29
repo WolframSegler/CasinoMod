@@ -1,4 +1,4 @@
-package data.scripts.casino.Poker;
+package data.scripts.casino.cards;
 
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.SettingsAPI;
@@ -7,9 +7,6 @@ import com.fs.starfarer.api.graphics.SpriteAPI;
 import data.scripts.casino.PokerGame.PokerGameLogic.Rank;
 import data.scripts.casino.PokerGame.PokerGameLogic.Suit;
 
-/**
- * All the sprites are static, which necessitates resizing, repositioning and recoloring before each render call.
- */
 public class CardSprites {
     private static final SettingsAPI settings = Global.getSettings();
     public static final SpriteAPI BACK_AQUA = settings.getSprite("card", "back_aqua");

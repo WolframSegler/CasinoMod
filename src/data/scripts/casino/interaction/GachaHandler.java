@@ -16,10 +16,6 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Handler for Tachy-Impact gacha mechanics: pull execution, animation display,
- * and ship conversion. Supports overdraft for VIP players.
- */
 public class GachaHandler {
 
     private static final String OPTION_GACHA_MENU = "gacha_menu";

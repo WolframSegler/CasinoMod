@@ -19,6 +19,7 @@ public class HelpHandler {
     private void initializeHandlers() {
         handlers.put("how_to_play_main", option -> showGeneralHelp());
         handlers.put("how_to_poker", option -> showPokerHelp());
+        handlers.put("how_to_blackjack", option -> showBlackjackHelp());
         handlers.put("how_to_arena", option -> showArenaHelp("arena_lobby"));
         handlers.put("how_to_gacha", option -> showGachaHelp());
         handlers.put("how_to_financial", option -> showFinancialHelp());
@@ -69,6 +70,7 @@ public class HelpHandler {
         main.textPanel.addPara(Strings.get("help.games_3"));
 
         main.options.addOption(Strings.get("help.about_poker"), "how_to_poker");
+        main.options.addOption(Strings.get("help.about_blackjack"), "how_to_blackjack");
         main.options.addOption(Strings.get("help.about_arena"), "how_to_arena");
         main.options.addOption(Strings.get("help.about_gacha"), "how_to_gacha");
         main.options.addOption(Strings.get("common.back"), "back_menu");
@@ -109,6 +111,32 @@ public class HelpHandler {
         } else {
             main.options.addOption(Strings.get("common.back"), "play");
         }
+    }
+
+    public void showBlackjackHelp() {
+        main.options.clearOptions();
+        main.textPanel.addPara(Strings.get("blackjack_help.title"), Color.CYAN);
+        main.textPanel.addPara(Strings.get("blackjack_help.intro"));
+        main.textPanel.addPara("");
+        main.textPanel.addPara(Strings.get("blackjack_help.goal_title"), Color.GRAY);
+        main.textPanel.addPara(Strings.get("blackjack_help.goal_1"));
+        main.textPanel.addPara("");
+        main.textPanel.addPara(Strings.get("blackjack_help.values_title"), Color.GRAY);
+        main.textPanel.addPara(Strings.get("blackjack_help.value_1"));
+        main.textPanel.addPara(Strings.get("blackjack_help.value_2"));
+        main.textPanel.addPara(Strings.get("blackjack_help.value_3"));
+        main.textPanel.addPara("");
+        main.textPanel.addPara(Strings.get("blackjack_help.actions_title"), Color.GRAY);
+        main.textPanel.addPara(Strings.get("blackjack_help.action_hit"));
+        main.textPanel.addPara(Strings.get("blackjack_help.action_stand"));
+        main.textPanel.addPara(Strings.get("blackjack_help.action_double"));
+        main.textPanel.addPara(Strings.get("blackjack_help.action_split"));
+        main.textPanel.addPara("");
+        main.textPanel.addPara(Strings.get("blackjack_help.special_title"), Color.GRAY);
+        main.textPanel.addPara(Strings.get("blackjack_help.blackjack_1"));
+        main.textPanel.addPara(Strings.get("blackjack_help.push_1"));
+
+        main.options.addOption(Strings.get("common.back"), "blackjack_play");
     }
 
     public void showArenaHelp(String returnTo) {

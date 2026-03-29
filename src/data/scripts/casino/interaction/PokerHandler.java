@@ -4,6 +4,7 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.rules.MemoryAPI;
 import data.scripts.casino.CasinoConfig;
 import data.scripts.casino.CasinoVIPManager;
+import data.scripts.casino.shared.CasinoFinancials;
 import data.scripts.casino.PokerDialogDelegate;
 import data.scripts.casino.PokerGame;
 import data.scripts.casino.PokerGame.PokerGameLogic;
@@ -16,10 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
-/**
- * Handler for Texas Hold'em poker: game setup, betting rounds, AI opponent,
- * and suspend/resume functionality. Early departure triggers cooldown penalty.
- */
 public class PokerHandler {
 
     private final CasinoInteraction main;
@@ -79,7 +76,6 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
             showPokerVisualPanel();
         });
         handlers.put("back_menu", option -> {
-            // Reset poker state when leaving via back button (not a suspended game)
             pokerGame = null;
             handsPlayedThisSession = 0;
             currentDelegate = null;
@@ -110,7 +106,6 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
             return;
         }
         
-        // Check predicate-based handlers
         for (Map.Entry<Predicate<String>, OptionHandler> entry : predicateHandlers.entrySet()) {
             if (entry.getKey().test(option)) {
                 entry.getValue().handle(option);
@@ -118,7 +113,6 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
             }
         }
         
-        // Handle other poker actions if no match found
         handlePokerAction(option);
     }
 
@@ -188,24 +182,7 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
     }
 
     private void displayFinancialInfo() {
-        int currentBalance = CasinoVIPManager.getBalance();
-        int creditCeiling = CasinoVIPManager.getCreditCeiling();
-        int availableCredit = CasinoVIPManager.getAvailableCredit();
-        int daysRemaining = CasinoVIPManager.getDaysRemaining();
-        
-        main.textPanel.addPara(Strings.get("financial_status.header"), Color.CYAN);
-        
-        Color balanceColor = currentBalance >= 0 ? Color.GREEN : Color.RED;
-        main.textPanel.addPara(Strings.format("financial_status.balance", currentBalance), balanceColor);
-        
-        main.textPanel.addPara(Strings.format("financial_status.credit_ceiling", creditCeiling), Color.GRAY);
-        main.textPanel.addPara(Strings.format("financial_status.available_credit", availableCredit), Color.YELLOW);
-        
-        if (daysRemaining > 0) {
-            main.textPanel.addPara(Strings.format("financial_status.vip_days", daysRemaining), Color.CYAN);
-        }
-        
-        main.textPanel.addPara(Strings.get("financial_status.divider"), Color.CYAN);
+        CasinoFinancials.displayFinancialInfo(main.textPanel);
     }
 
     public void setupGame() {
@@ -218,11 +195,8 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
         int availableCredit = CasinoVIPManager.getAvailableCredit();
         boolean overdraftAvailable = CasinoVIPManager.isOverdraftAvailable();
         
-        // Check if player has enough in wallet
         if (playerWallet < stackSize) {
-            // Player doesn't have enough gems, check if overdraft is available
             if (!overdraftAvailable) {
-                // No VIP - show promotion and return
                 showVIPPromotionForPoker(stackSize);
                 return;
             }
@@ -233,7 +207,6 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
                 return;
             }
             
-            // Overdraft needed - show confirmation first
             int overdraftAmount = stackSize - playerWallet;
             pendingStackSize = stackSize;
             pendingOverdraftAmount = overdraftAmount;
@@ -241,7 +214,6 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
             return;
         }
         
-        // No overdraft needed - proceed directly
         startGameWithStack(stackSize);
     }
     
@@ -326,9 +298,9 @@ private String formatBB(int amount, int bigBlind) {
 
     private void showPokerVisualPanel() {
         if (pokerGame == null) return;
+        main.options.clearOptions();
         PokerGame.PokerState state = pokerGame.getState();
         
-        // Only auto-end if pot is 0 AND not in showdown (player can still be all-in with 0 stack but hand ongoing)
         if (state.playerStack < state.bigBlind && state.pot == 0 && state.round != PokerGame.Round.SHOWDOWN) {
             endHand();
             return;
@@ -513,9 +485,6 @@ private String formatBB(int amount, int bigBlind) {
     public void updateUI() {
         if (pokerGame == null) return;
         PokerGame.PokerState state = pokerGame.getState();
-        // Guard against resuming game when player has no chips
-        // Only trigger if there's no active hand (pot=0) or hand is already over (SHOWDOWN)
-        // This prevents premature end when player goes all-in (stack=0 but hand still active)
         if (state.playerStack <= 0 && (state.pot == 0 || state.round == PokerGame.Round.SHOWDOWN)) {
             endHand();
             return;
@@ -609,13 +578,11 @@ private void startNextHand() {
         if (pokerGame == null) return;
         PokerGame.PokerState state = pokerGame.getState();
         
-        // Check if we need to show showdown results
         if (state.round == PokerGame.Round.SHOWDOWN) {
             determineWinner();
             return;
         }
         
-        // If it's opponent's turn, process it
         if (state.currentPlayer == PokerGame.CurrentPlayer.OPPONENT) {
              PokerGame.SimplePokerAI.AIResponse response = pokerGame.getOpponentAction();
              
@@ -630,18 +597,13 @@ switch(response.action) {
                       main.getTextPanel().addPara(Strings.get("poker_actions.opponent_folds_dot"), Color.CYAN); break;
               }
              
-             // Track if AI is folding to a player bet (for anti-gullibility)
-             if (response.action == PokerGame.SimplePokerAI.Action.FOLD) {
-                 // Only track if player has bet (not when checking through)
-                 if (state.playerBet > state.opponentBet) {
-                     pokerGame.getAI().trackAIFoldedToPlayerBet();
-                 }
-             }
+if (response.action == PokerGame.SimplePokerAI.Action.FOLD && state.playerBet > state.opponentBet) {
+                  pokerGame.getAI().trackAIFoldedToPlayerBet();
+              }
              
              pokerGame.processOpponentAction(response);
              
-             // Re-check state after opponent action
-             state = pokerGame.getState();
+state = pokerGame.getState();
              if (state.round == PokerGame.Round.SHOWDOWN) {
                  determineWinner();
                  return;
@@ -949,7 +911,6 @@ switch(response.action) {
         if (pokerGame == null) return;
         PokerGame.PokerState state = pokerGame.getState();
 
-        // Check if someone folded - if so, no showdown, just award the pot
         if (state.folder != null) {
             if (state.folder == PokerGame.CurrentPlayer.PLAYER) {
                 main.getTextPanel().addPara(Strings.format("poker_result.you_fold_pot", state.pot), Color.GRAY);
@@ -976,21 +937,20 @@ switch(response.action) {
             main.getTextPanel().addPara(Strings.get("poker_result.hand_ended_early"), Color.GRAY);
         }
 
-        // We need detailed comparison (tie breakers) which PokerGame.evaluate() does.
-        // Re-evaluate to get HandScore for comparison
         PokerGame.PokerGameLogic.HandScore playerScore = PokerGame.PokerGameLogic.evaluate(state.playerHand, state.communityCards);
         PokerGame.PokerGameLogic.HandScore oppScore = PokerGame.PokerGameLogic.evaluate(state.opponentHand, state.communityCards);
 
         int cmp = playerScore.compareTo(oppScore);
 
-        // Track showdown for anti-gullibility AI
-        // Check if player was bluffing (had weak hand but AI folded earlier)
-        boolean playerWasBluffing = false;
+        boolean playerWasBluffing = false;  // anti-gullibility AI tracking
         if (cmp < 0) {
-            // Player lost - they were bluffing if they had weak hand
             playerWasBluffing = playerScore.rank.value <= PokerGame.PokerGameLogic.HandRank.PAIR.value;
         }
         pokerGame.getAI().trackPlayerShowdown(playerWasBluffing);
+
+            float lastBetRatio = state.pot > 0 ? (float) state.playerBet / state.pot : 0f;
+            boolean playerWon = cmp > 0;
+            pokerGame.getAI().trackShowdownDetails(playerScore.rank.value, lastBetRatio, playerWon, playerWasBluffing);
 
         if (cmp > 0) {
             main.getTextPanel().addPara(Strings.get("poker_result.victory"), Color.CYAN);
@@ -1048,7 +1008,6 @@ switch(response.action) {
 
         main.textPanel.setFontInsignia();
 
-        // Build the full text with actual card strings (not format placeholders)
         StringBuilder fullText = new StringBuilder(prefix + ": ");
         List<String> cardStrings = new ArrayList<>();
         List<Color> highlightColors = new ArrayList<>();
@@ -1072,10 +1031,7 @@ switch(response.action) {
             highlightColors.add(suitColor);
         }
 
-        // Add paragraph with the full text
         main.textPanel.addPara(fullText.toString(), prefixColor);
-
-        // Highlight the card texts and set their colors
         main.textPanel.highlightInLastPara(cardStrings.toArray(new String[0]));
         main.textPanel.setHighlightColorsInLastPara(highlightColors.toArray(new Color[0]));
     }
@@ -1106,10 +1062,7 @@ switch(response.action) {
 
         handsPlayedThisSession = 0;
 
-        // Clear any suspended game memory since player is intentionally leaving
         clearSuspendedGameMemory();
-
-        // Reset poker game state
         pokerGame = null;
         currentDelegate = null;
 
@@ -1137,7 +1090,6 @@ switch(response.action) {
         handsPlayedThisSession = 0;
         clearSuspendedGameMemory();
         
-        // Reset poker game state
         pokerGame = null;
         currentDelegate = null;
         
@@ -1147,9 +1099,6 @@ switch(response.action) {
 private void endHand() {
         if (pokerGame == null) return;
         PokerGame.PokerState state = pokerGame.getState();
-
-        // Note: Pot has already been awarded in determineWinner(), so state.pot is 0 here
-        // The win message is already displayed there with the correct amount
 
         if (state.playerStack < state.bigBlind) {
             main.getTextPanel().addPara(Strings.get("poker_result.out_of_chips"), Color.RED);
@@ -1174,15 +1123,6 @@ private void endHand() {
         }
     }
     
-    // ============================================================================
-    // IN-PLACE ACTION PROCESSING (for visual panel UI)
-    // These methods process actions without dismissing/recreating the dialog
-    // ============================================================================
-    
-    /**
-     * Processes a player action in-place without dismissing the dialog.
-     * This is called by PokerDialogDelegate when handler is available.
-     */
     public void processPlayerActionInPlace(PokerGame.Action action, int raiseAmount, PokerDialogDelegate delegate) {
         if (pokerGame == null) return;
         
@@ -1225,9 +1165,6 @@ private void endHand() {
         delegate.refreshAfterStateChange(pokerGame);
     }
     
-    /**
-     * Processes opponent's turn in-place, updating the delegate as needed.
-     */
     private void processOpponentTurnInPlace(PokerDialogDelegate delegate) {
         if (pokerGame == null) return;
         
@@ -1255,9 +1192,6 @@ private void endHand() {
         }
     }
     
-    /**
-     * Formats an opponent AI response into display text.
-     */
     private String formatOpponentActionText(PokerGame.SimplePokerAI.AIResponse response) {
         return switch (response.action) {
             case CALL -> Strings.get("poker_actions.opponent_calls");
@@ -1267,9 +1201,6 @@ private void endHand() {
         };
     }
     
-    /**
-     * Determines the winner at showdown and updates game state in-place.
-     */
     private void determineWinnerInPlace(PokerDialogDelegate delegate) {
         if (pokerGame == null) return;
         PokerGame.PokerState state = pokerGame.getState();
@@ -1307,31 +1238,24 @@ private void endHand() {
         delegate.refreshAfterStateChange(pokerGame);
     }
     
-    /**
-     * Starts the next hand in-place without dismissing the dialog.
-     */
     public void startNextHandInPlace(PokerDialogDelegate delegate) {
         if (pokerGame == null) return;
-        
+
         PokerGame.PokerState state = pokerGame.getState();
-        
+
         if (state.playerStack <= 0 || state.opponentStack <= 0) {
             delegate.closeDialog();
             setupGame(state.playerStack > 0 ? state.playerStack : 1000);
             return;
         }
-        
+
         pokerGame.startNewHand();
         handsPlayedThisSession++;
-        
+
         delegate.updateGame(pokerGame);
         processOpponentTurnInPlace(delegate);
-        delegate.refreshAfterStateChange(pokerGame);
     }
     
-    /**
-     * Handles a clean leave from showdown in-place.
-     */
     public void handleCleanLeaveInPlace(PokerDialogDelegate delegate) {
         if (pokerGame != null && pokerGame.getState().playerStack > 0) {
             int stackToReturn = pokerGame.getState().playerStack;

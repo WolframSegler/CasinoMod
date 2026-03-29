@@ -12,15 +12,13 @@ import com.fs.starfarer.api.ui.CustomPanelAPI;
 public class GachaAnimationDialogDelegate implements CustomVisualDialogDelegate {
     
     protected CustomVisualDialogDelegate.DialogCallbacks callbacks;
-    protected float endDelay = 1f; // Shorter delay for gacha
+    protected float endDelay = 1f;
     protected boolean finished = false;
     
     protected String musicId;
     protected GachaAnimation gachaAnimation;
     protected InteractionDialogAPI dialog;
     protected Map<String, MemoryAPI> memoryMap;
-    
-    // Callback to trigger menu update after animation completes
     protected Runnable onDismissCallback;
     
     public GachaAnimationDialogDelegate(String musicId, GachaAnimation gachaAnimation, 
@@ -39,49 +37,29 @@ public class GachaAnimationDialogDelegate implements CustomVisualDialogDelegate 
     
     public void init(CustomPanelAPI panel, DialogCallbacks callbacks) {
         this.callbacks = callbacks;
-        
-        // Set fade duration for exit
         callbacks.getPanelFader().setDurationOut(1f);
-        
-        // Initialize the gacha animation
         gachaAnimation.init(panel, callbacks);
-        
-        // Start the animation immediately
         gachaAnimation.startAnimation();
     }
     
     public float getNoiseAlpha() {
-        // Add noise for better panel blending and visibility
         return 0.3f;
     }
     
     public void advance(float amount) {
-        // Handle animation completion
         if (!finished && gachaAnimation.isAnimationComplete()) {
-            // Reduce the delay to 0 immediately when animation completes
-            // This allows for instant dismissal when animation is skipped
             endDelay = 0f;
-            
-            // Fade out the panel
             callbacks.getPanelFader().fadeOut();
             if (callbacks.getPanelFader().isFadedOut()) {
-                // Don't dismiss the dialog immediately, let the callback handle it
-                // callbacks.dismissDialog();
                 finished = true;
             }
         }
     }
     
     public void reportDismissed(int option) {
-        // Clean up any audio or other resources
-        // In the future, we might play completion sounds here
-        
-        if (memoryMap != null) { // null when called from test dialogs
-            // Fire event when gacha animation completes
+        if (memoryMap != null) {
             FireBest.fire(null, dialog, memoryMap, "GachaAnimationCompleted");
         }
-        
-        // Trigger the callback to update the menu
         if (onDismissCallback != null) {
             onDismissCallback.run();
         }
