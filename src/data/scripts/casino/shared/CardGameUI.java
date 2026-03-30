@@ -11,7 +11,6 @@ import com.fs.starfarer.api.util.Misc;
 
 import data.scripts.casino.cards.CardFlipAnimation;
 import data.scripts.casino.cards.CardSprites;
-import data.scripts.casino.BlackjackGame;
 
 public final class CardGameUI {
     private CardGameUI() {}
@@ -41,35 +40,6 @@ public final class CardGameUI {
 
         POKER_TABLE.setSize(w - 6, h * 0.7f);
         POKER_TABLE.render(x + 3, y + h * 0.15f);
-    }
-
-    public static SpriteAPI getCardSprite(BlackjackGame.Card card) {
-        if (card == null) return null;
-
-        data.scripts.casino.PokerGame.PokerGameLogic.Suit pokerSuit = switch (card.suit()) {
-            case SPADES -> data.scripts.casino.PokerGame.PokerGameLogic.Suit.SPADES;
-            case HEARTS -> data.scripts.casino.PokerGame.PokerGameLogic.Suit.HEARTS;
-            case DIAMONDS -> data.scripts.casino.PokerGame.PokerGameLogic.Suit.DIAMONDS;
-            case CLUBS -> data.scripts.casino.PokerGame.PokerGameLogic.Suit.CLUBS;
-        };
-
-        data.scripts.casino.PokerGame.PokerGameLogic.Rank pokerRank = switch (card.rank()) {
-            case ACE -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.ACE;
-            case TWO -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.TWO;
-            case THREE -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.THREE;
-            case FOUR -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.FOUR;
-            case FIVE -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.FIVE;
-            case SIX -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.SIX;
-            case SEVEN -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.SEVEN;
-            case EIGHT -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.EIGHT;
-            case NINE -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.NINE;
-            case TEN -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.TEN;
-            case JACK -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.JACK;
-            case QUEEN -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.QUEEN;
-            case KING -> data.scripts.casino.PokerGame.PokerGameLogic.Rank.KING;
-        };
-
-        return CardSprites.get(pokerSuit, pokerRank);
     }
 
     public static void renderCardFaceUp(float x, float y, float cardWidth, float cardHeight,

@@ -11,7 +11,6 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.SettingsAPI;
 import com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin;
 import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
-import com.fs.starfarer.api.graphics.SpriteAPI;
 import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
@@ -22,15 +21,14 @@ import com.fs.starfarer.api.ui.PositionAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI.ActionListenerDelegate;
 import com.fs.starfarer.api.ui.UIComponentAPI;
-import com.fs.starfarer.api.util.Misc;
 
+import data.scripts.casino.cards.Card;
 import data.scripts.casino.cards.CardFlipAnimation;
 import data.scripts.casino.cards.CardSprites;
 import data.scripts.casino.cards.CardUtils;
 import data.scripts.casino.shared.CardGameUI;
 import data.scripts.casino.PokerGame.PokerState;
 import data.scripts.casino.PokerGame.Round;
-import data.scripts.casino.PokerGame.PokerGameLogic.Card;
 import data.scripts.casino.PokerGame.PokerGameLogic.HandScore;
 
 import static data.scripts.casino.shared.CardGameUI.*;
@@ -798,19 +796,13 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private void renderCardFaceUp(float x, float y, Card card, float alphaMult) {
-        if (card != null) {
-            CardGameUI.renderCardFaceUp(x, y, CardSprites.get(card.suit(), card.rank()), alphaMult);
-        }
-    }
-
     private void renderCardFaceDown(float x, float y, float alphaMult) {
         CardGameUI.renderCardFaceDown(x, y, alphaMult);
     }
 
     private void renderCardAnimated(float x, float y, Card card, CardFlipAnimation anim, float alphaMult) {
         if (card != null) {
-            CardGameUI.renderCardAnimated(x, y, CardSprites.get(card.suit(), card.rank()), anim, alphaMult);
+            CardGameUI.renderCardAnimated(x, y, CardSprites.get(card), anim, alphaMult);
         }
     }
 

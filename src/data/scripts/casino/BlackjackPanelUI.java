@@ -12,7 +12,6 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.SettingsAPI;
 import com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin;
 import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
-import com.fs.starfarer.api.graphics.SpriteAPI;
 import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
@@ -24,10 +23,11 @@ import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI.ActionListenerDelegate;
 import com.fs.starfarer.api.ui.UIComponentAPI;
 
+import data.scripts.casino.cards.Card;
 import data.scripts.casino.cards.CardFlipAnimation;
+import data.scripts.casino.cards.CardSprites;
 import data.scripts.casino.shared.CardGameUI;
 import data.scripts.casino.BlackjackGame.Action;
-import data.scripts.casino.BlackjackGame.Card;
 import data.scripts.casino.BlackjackGame.GameState;
 import data.scripts.casino.BlackjackGame.Hand;
 
@@ -559,7 +559,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
             dealerTotalLabel.setText(totalText);
             dealerTotalLabel.setOpacity(1f);
         } else {
-            int visibleValue = dealerHand.cards.get(0).getValue();
+            int visibleValue = dealerHand.cards.get(0).value();
             String totalText = Strings.format("blackjack.dealer_showing", visibleValue);
             dealerTotalLabel.setText(totalText);
             dealerTotalLabel.setOpacity(1f);
@@ -596,7 +596,6 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         final float w = pos.getWidth();
         final float h = pos.getHeight();
         final float cx = pos.getCenterX();
-        final float cy = pos.getCenterY();
 
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
         final float s = Global.getSettings().getScreenScaleMult();
@@ -634,17 +633,17 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
     private void renderPlayerCards(float cx, float cardY, Hand hand, float alphaMult) {
         if (hand == null || hand.cards.isEmpty()) return;
 
-        int numCards = hand.cards.size();
-        float totalWidth = numCards * CARD_WIDTH + (numCards - 1) * CARD_SPACING;
-        float startX = cx - totalWidth / 2f;
+        final int numCards = hand.cards.size();
+        final float totalWidth = numCards * CARD_WIDTH + (numCards - 1) * CARD_SPACING;
+        final float startX = cx - totalWidth / 2f;
 
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
         for (int i = 0; i < numCards; i++) {
-            Card card = hand.cards.get(i);
-            float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
-            CardFlipAnimation anim = i < playerCardAnimations.length ? playerCardAnimations[i] : null;
+            final Card card = hand.cards.get(i);
+            final float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
+            final CardFlipAnimation anim = i < playerCardAnimations.length ? playerCardAnimations[i] : null;
             renderCardAnimated(cardX, cardY, card, anim, alphaMult);
         }
     }
@@ -701,16 +700,12 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private void renderCardFaceUp(float x, float y, Card card, float alphaMult) {
-        CardGameUI.renderCardFaceUp(x, y, CardGameUI.getCardSprite(card), alphaMult);
-    }
-
     private void renderCardFaceDown(float x, float y, float alphaMult) {
         CardGameUI.renderCardFaceDown(x, y, alphaMult);
     }
 
     private void renderCardAnimated(float x, float y, Card card, CardFlipAnimation anim, float alphaMult) {
-        CardGameUI.renderCardAnimated(x, y, CardGameUI.getCardSprite(card), anim, alphaMult);
+        CardGameUI.renderCardAnimated(x, y, CardSprites.get(card), anim, alphaMult);
     }
 
     public void advance(float amount) {
