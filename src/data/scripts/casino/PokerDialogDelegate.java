@@ -203,9 +203,4 @@ public class PokerDialogDelegate extends BaseGameDelegate implements PokerAction
     public boolean getPendingCleanLeave() {
         return pendingCleanLeave;
     }
-
-    @Override
-    public void onBackToMenu() {
-        onDismissCallback.run();
-    }
 }

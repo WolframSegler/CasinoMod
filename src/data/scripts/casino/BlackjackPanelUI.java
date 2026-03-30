@@ -1,7 +1,6 @@
 package data.scripts.casino;
 
 import java.awt.Color;
-import java.util.List;
 
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
@@ -10,7 +9,6 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.SettingsAPI;
 import com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin;
 import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
-import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
 import com.fs.starfarer.api.ui.CustomPanelAPI;
@@ -129,6 +127,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
 
         leaveButton = btnTp.addButton(Strings.get("blackjack.leave"), BJ_LEAVE, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         leaveButton.setQuickMode(true);
+        leaveButton.setShortcut(Keyboard.KEY_ESCAPE, false);
         leaveButton.getPosition().inTL(PANEL_WIDTH - BUTTON_WIDTH - MARGIN, MARGIN);
 
         howToPlayButton = btnTp.addButton(Strings.get("blackjack.how_to_play"), BJ_HOW_TO_PLAY, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
@@ -146,16 +145,19 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
 
         hitButton = btnTp.addButton(Strings.get("blackjack.hit"), BJ_HIT, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         hitButton.setQuickMode(true);
+        hitButton.setShortcut(Keyboard.KEY_H, false);
         hitButton.getPosition().inTL(0, 0);
         hitButton.setOpacity(0f);
 
         standButton = btnTp.addButton(Strings.get("blackjack.stand"), BJ_STAND, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         standButton.setQuickMode(true);
+        standButton.setShortcut(Keyboard.KEY_S, false);
         standButton.getPosition().inTL(0, 0);
         standButton.setOpacity(0f);
 
         doubleButton = btnTp.addButton(Strings.get("blackjack.double_down"), BJ_DOUBLE, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         doubleButton.setQuickMode(true);
+        doubleButton.setShortcut(Keyboard.KEY_D, false);
         doubleButton.getPosition().inTL(0, 0);
         doubleButton.setOpacity(0f);
 
@@ -736,40 +738,6 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
             dealerCardAnimations[0].triggerFlip(0f);
         }
         lastDealerHoleRevealed = holeRevealed;
-    }
-
-    public final void processInput(List<InputEventAPI> events) {
-        for (InputEventAPI event : events) {
-            if (event.isConsumed()) continue;
-
-            if (event.isKeyDownEvent()) {
-                final int key = event.getEventValue();
-
-                if (key == Keyboard.KEY_ESCAPE) {
-                    event.consume();
-                    callbacks.dismissDialog();
-                    return;
-                }
-
-                if (key == Keyboard.KEY_H) {
-                    event.consume();
-                    actionCallback.onPlayerAction(Action.HIT);
-                    return;
-                }
-
-                if (key == Keyboard.KEY_S) {
-                    event.consume();
-                    actionCallback.onPlayerAction(Action.STAND);
-                    return;
-                }
-
-                if (key == Keyboard.KEY_D) {
-                    event.consume();
-                    actionCallback.onPlayerAction(Action.DOUBLE_DOWN);
-                    return;
-                }
-            }
-        }
     }
 
     @Override

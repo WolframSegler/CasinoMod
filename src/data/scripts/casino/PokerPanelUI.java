@@ -11,7 +11,6 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.SettingsAPI;
 import com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin;
 import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
-import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
 import com.fs.starfarer.api.ui.CustomPanelAPI;
@@ -56,7 +55,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
     private static final Color COLOR_ROUND_SHOWDOWN = new Color(255, 200, 50);
 
     private final PokerActionCallback actionCallback;
-    private DialogCallbacks callbacks;
     private CustomPanelAPI panel;
 
     private PokerGame game;
@@ -141,7 +139,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
 
     public interface PokerActionCallback {
         void onPlayerAction(PokerGame.Action action, int raiseAmount);
-        void onBackToMenu();
         void onNextHand();
         void onSuspend();
         void onHowToPlay();
@@ -163,7 +160,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
 
     public final void init(CustomPanelAPI panel, DialogCallbacks callbacks) {
         this.panel = panel;
-        this.callbacks = callbacks;
 
         waitingForOpponent = false;
         opponentThinkTimer = 0f;
@@ -183,6 +179,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
 
         flipTableButton = btnTp.addButton(Strings.get("poker_panel.run_away"), POKER_FLIP_TABLE, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         flipTableButton.setQuickMode(true);
+        flipTableButton.setShortcut(Keyboard.KEY_ESCAPE, false);
         flipTableButton.getPosition().inTL(PANEL_WIDTH - BUTTON_WIDTH - MARGIN, MARGIN);
 
         final ButtonAPI suspendBtn = btnTp.addButton(Strings.get("poker_panel.wait"), POKER_SUSPEND, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
@@ -204,11 +201,13 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
 
         foldBtn = btnTp.addButton(Strings.get("poker_panel.fold_btn"), POKER_FOLD, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         foldBtn.setQuickMode(true);
+        foldBtn.setShortcut(Keyboard.KEY_F, false);
         foldBtn.getPosition().inTL(0, 0);
         foldBtn.setOpacity(0f);
 
         checkCallBtn = btnTp.addButton(Strings.get("poker_panel.check_btn"), POKER_CHECK_CALL, BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
         checkCallBtn.setQuickMode(true);
+        checkCallBtn.setShortcut(Keyboard.KEY_C, false);
         checkCallBtn.getPosition().inTL(0, 0);
         checkCallBtn.setOpacity(0f);
 
@@ -268,6 +267,12 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
                     final String label = formatRaiseLabel(amt, state.bigBlind, state.pot, state.playerStack, state.opponentBet, state.playerBet);
                     final String btnId = POKER_RAISE_PREFIX + amt;
                     final float btnX = raiseStartX + (RAISE_BUTTON_WIDTH + BUTTON_SPACING) * i;
+
+                    if (amt == state.bigBlind) {
+                        btn.setShortcut(Keyboard.KEY_R, false);
+                    } else {
+                        btn.setShortcut(Keyboard.KEY_NONE, false);
+                    }
 
                     btn.setText(label);
                     btn.setCustomData(btnId);
@@ -654,11 +659,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         nextHandBtn.setOpacity(0f);
     }
 
-    /**
-     * Do not forget to disable non invisible buttons that one is not supposed to be able to click.
-     * TODO remove message after reading
-     */
-
     private final void updateNextHandButton(PokerState state) {
         final boolean atShowdown = state.round == Round.SHOWDOWN;
         final boolean canContinue = state.playerStack >= state.bigBlind &&
@@ -792,42 +792,6 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
 
         lastAnimatedRound = state.round;
         lastAnimatedCommunityCount = currentCommunityCount;
-    }
-
-    public final void processInput(List<InputEventAPI> events) {
-        for (InputEventAPI event : events) {
-            if (event.isConsumed()) continue;
-
-            if (event.isKeyDownEvent()) {
-                final int key = event.getEventValue();
-
-                if (key == Keyboard.KEY_ESCAPE) {
-                    event.consume();
-                    callbacks.dismissDialog();
-                    return;
-                }
-
-                if (key == Keyboard.KEY_F) {
-                    event.consume();
-                    handleFoldClick();
-                    return;
-                }
-
-                if (key == Keyboard.KEY_C) {
-                    event.consume();
-                    handleCheckCallClick();
-                    return;
-                }
-
-                if (key == Keyboard.KEY_R) {
-                    event.consume();
-                    final PokerState state = game.getState();
-                    final int minRaise = state.bigBlind;
-                    handleRaiseAmountClick(minRaise);
-                    return;
-                }
-            }
-        }
     }
 
     @Override

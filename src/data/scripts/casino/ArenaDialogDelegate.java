@@ -228,7 +228,7 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate, ArenaAct
         return finished;
     }
     
-    public void showErrorMessage(String message) {
+    public final void showErrorMessage(String message) {
         arenaPanel.showExternalError(message);
     }
  
@@ -304,12 +304,6 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate, ArenaAct
             return;
         }
         pendingStartBattle = true;
-        callbacks.dismissDialog();
-    }
-    
-    @Override
-    public void onEscape() {
-        pendingLeave = true;
         callbacks.dismissDialog();
     }
 }
