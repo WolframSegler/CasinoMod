@@ -720,26 +720,6 @@ private ArenaDialogDelegate activeDialogDelegate = null;
         
         ArenaDialogDelegate triggeredDelegate = activeDialogDelegate;
         
-        if (triggeredDelegate.getPendingWatchNext()) {
-            currentDelegate = null;
-            if (battleEnded) {
-                startNewArenaMatch();
-            } else {
-                simulateArenaStep();
-            }
-            return;
-        }
-        
-        if (triggeredDelegate.getPendingSkipToEnd()) {
-            currentDelegate = null;
-            if (battleEnded) {
-                startNewArenaMatch();
-            } else {
-                simulateAllRemainingSteps();
-            }
-            return;
-        }
-        
         if (triggeredDelegate.getPendingSuspend()) {
             suspendArena();
             return;
@@ -748,42 +728,11 @@ private ArenaDialogDelegate activeDialogDelegate = null;
         if (triggeredDelegate.getPendingLeave()) {
             activeDialogDelegate = null;
             currentDelegate = null;
-            // If leaving without a suspended game, clear any suspended memory
             if (!hasSuspendedArena()) {
                 clearSuspendedArenaMemory();
             }
             resetArenaState();
             main.showMenu();
-            return;
-        }
-        
-        if (triggeredDelegate.getPendingNextGame()) {
-            currentDelegate = null;
-            startNewArenaMatch();
-            return;
-        }
-        
-        if (triggeredDelegate.getPendingBetAmount() > 0 && triggeredDelegate.getPendingChampionIndex() >= 0) {
-            currentDelegate = null;
-            performAddBetToChampion(triggeredDelegate.getPendingChampionIndex(), triggeredDelegate.getPendingBetAmount());
-            return;
-        }
-        
-        if (triggeredDelegate.getPendingStartBattle()) {
-            currentDelegate = null;
-            int chosenIdx = -1;
-            for (int i = 0; i < arenaCombatants.size(); i++) {
-                if (chosenChampion != null &&
-                    arenaCombatants.get(i).fullName.equals(chosenChampion.fullName)) {
-                    chosenIdx = i;
-                    break;
-                }
-            }
-            if (chosenIdx != -1) {
-                startArenaBattle(chosenIdx);
-            } else {
-                main.showMenu();
-            }
             return;
         }
         
@@ -816,31 +765,6 @@ private boolean simulateArenaStep() {
         
         showArenaVisualPanel();
         return true;
-    }
-
-    private void simulateAllRemainingSteps() {
-        boolean result;
-        do {
-            List<String> logEntries = activeArena.simulateStep(arenaCombatants, currentRound);
-            
-            activeArena.invalidateOddsCache();
-
-            currentRound++;
-
-            int aliveCount = 0;
-            for (SpiralAbyssArena.SpiralGladiator gladiator : arenaCombatants) {
-                if (!gladiator.isDead) {
-                    gladiator.turnsSurvived++;
-                    aliveCount++;
-                }
-            }
-
-            battleLog.addAll(logEntries);
-            
-            result = aliveCount > 1;
-        } while (result);
-        
-        finishArenaBattle();
     }
 
     private void finishArenaBattle() {

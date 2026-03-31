@@ -32,7 +32,7 @@ public class Deck {
         init();
     }
 
-    private final void init() {
+    private void init() {
         for (int d = 0; d < numDecks; d++) {
             for (Suit s : Suit.values()) {
                 for (Rank r : Rank.values()) {

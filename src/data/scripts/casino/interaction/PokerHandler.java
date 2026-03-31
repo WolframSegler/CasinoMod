@@ -260,9 +260,7 @@ handlers.put("poker_back_action", option -> showPokerVisualPanel());
 private void startGameWithStack(int stackSize) {
         CasinoVIPManager.addToBalance(-stackSize);
         
-        int opponentStack = stackSize;
-        
-        pokerGame = new PokerGame(stackSize, opponentStack, CasinoConfig.POKER_SMALL_BLIND, CasinoConfig.POKER_BIG_BLIND);
+        pokerGame = new PokerGame(stackSize, stackSize);
         
         handsPlayedThisSession = 0;
         
@@ -329,20 +327,11 @@ private String formatBB(int amount, int bigBlind) {
             int raiseAmount = currentDelegate.getPendingRaiseAmount();
             
             switch (action) {
-                case FOLD:
-                    processPlayerFold();
-                    break;
-                case CHECK:
-                    processPlayerCheck();
-                    break;
-                case CALL:
-                    processPlayerCall();
-                    break;
-                case RAISE:
-                    processPlayerRaise(raiseAmount);
-                    break;
-                case ALL_IN:
-                    throw new IllegalArgumentException();
+                case FOLD -> processPlayerFold();
+                case CHECK -> processPlayerCheck();
+                case CALL -> processPlayerCall();
+                case RAISE -> processPlayerRaise(raiseAmount);
+                case ALL_IN -> throw new IllegalArgumentException();
             }
             return;
         }
@@ -438,6 +427,7 @@ private String formatBB(int amount, int bigBlind) {
                 case RAISE -> Strings.format("poker_actions.opponent_raises_by", response.raiseAmount);
                 case CHECK -> Strings.get("poker_actions.opponent_checks");
                 case FOLD -> Strings.get("poker_actions.opponent_folds");
+                case BET -> Strings.format("poker_actions.opponent_bets", response.raiseAmount);
             };
             
             state = pokerGame.getState();
@@ -988,7 +978,7 @@ state = pokerGame.getState();
         StringBuilder cardText = new StringBuilder();
         for (int i = 0; i < cards.size(); i++) {
             Card c = cards.get(i);
-            Color suitColor = switch (c.suit) {
+            Color suitColor = switch (c.suit()) {
                 case HEARTS -> Color.RED;
                 case DIAMONDS -> Color.BLUE;
                 case CLUBS -> Color.GREEN;
@@ -1014,7 +1004,7 @@ state = pokerGame.getState();
 
         for (int i = 0; i < cards.size(); i++) {
             Card c = cards.get(i);
-            Color suitColor = switch (c.suit) {
+            Color suitColor = switch (c.suit()) {
                 case HEARTS -> Color.RED;
                 case DIAMONDS -> Color.BLUE;
                 case CLUBS -> Color.GREEN;
@@ -1155,9 +1145,7 @@ private void endHand() {
                 pokerGame.processPlayerAction(PokerGame.Action.RAISE, raiseAmount);
                 delegate.setLastPlayerAction(Strings.format("poker_actions.you_raise_to", raiseAmount));
             }
-            case ALL_IN -> {
-                throw new IllegalArgumentException();
-            }
+            case ALL_IN -> throw new IllegalArgumentException();
         }
         
         processOpponentTurnInPlace(delegate);
@@ -1198,6 +1186,7 @@ private void endHand() {
             case RAISE -> Strings.format("poker_actions.opponent_raises_by", response.raiseAmount);
             case CHECK -> Strings.get("poker_actions.opponent_checks");
             case FOLD -> Strings.get("poker_actions.opponent_folds");
+            case BET -> Strings.format("poker_actions.opponent_bets", response.raiseAmount);
         };
     }
     

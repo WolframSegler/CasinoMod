@@ -12,7 +12,6 @@ import data.scripts.casino.BlackjackGame.GameState;
 import java.awt.Color;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.function.Predicate;
 
 public class BlackjackHandler {
 
@@ -26,7 +25,6 @@ public class BlackjackHandler {
     private static final String BLACKJACK_COOLDOWN_KEY = "$ipc_blackjack_cooldown_until";
 
     private final Map<String, OptionHandler> handlers = new HashMap<>();
-    private final Map<Predicate<String>, OptionHandler> predicateHandlers = new HashMap<>();
 
     public BlackjackHandler(CasinoInteraction main) {
         this.main = main;
@@ -52,14 +50,6 @@ public class BlackjackHandler {
         OptionHandler handler = handlers.get(option);
         if (handler != null) {
             handler.handle(option);
-            return;
-        }
-
-        for (Map.Entry<Predicate<String>, OptionHandler> entry : predicateHandlers.entrySet()) {
-            if (entry.getKey().test(option)) {
-                entry.getValue().handle(option);
-                return;
-            }
         }
     }
 
@@ -368,12 +358,7 @@ public class BlackjackHandler {
             case SPLIT -> blackjackGame.playerSplit();
         }
 
-        GameState state = blackjackGame.getGameState();
-
         delegate.refreshAfterStateChange(blackjackGame);
-
-        if (state == GameState.RESULT) {
-        }
     }
 
     public void startNewHandInPlace(BlackjackDialogDelegate delegate) {

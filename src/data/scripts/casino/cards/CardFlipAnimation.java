@@ -37,12 +37,10 @@ public class CardFlipAnimation {
             }
         }
         if (phase == Phase.FLIPPING) {
-            float oldProgress = progress;
             progress += amount / FLIP_DURATION;
             if (progress >= 1f) {
                 progress = 1f;
                 phase = Phase.REVEALED;
-            } else if (progress > oldProgress + 0.1f) {
             }
         }
     }

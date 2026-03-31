@@ -3,7 +3,7 @@ package data.scripts.casino.cards;
 import data.scripts.casino.Strings;
 
 public class CardUtils {
-    public static final String getRankName(int rankValue) {
+    public static String getRankName(int rankValue) {
         return switch (rankValue)
         {
             case 14 -> Strings.get("poker_ranks.ace");

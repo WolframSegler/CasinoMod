@@ -65,7 +65,7 @@ public class BlackjackGame {
         // Can split if two cards of same rank
         public boolean canSplit() {
             return cards.size() == 2 &&
-                   cards.get(0).rank == cards.get(1).rank;
+                   cards.get(0).rank() == cards.get(1).rank();
         }
 
         public boolean canDoubleDown() { return cards.size() == 2; }
@@ -82,7 +82,6 @@ public class BlackjackGame {
         public GameState state;
         public int lastPotWon;
         public boolean dealerHoleCardRevealed;
-        public int splitBet;
         public int originalBalance;
         public int creditCeiling;
         public int creditBorrowed;
@@ -343,11 +342,4 @@ public class BlackjackGame {
         return state.playerHand;
     }
 
-    public int getCardsRemaining() {
-        return deck.cardsRemaining();
     }
-
-    public int getHandsUntilReshuffle() {
-        return RESHUFFLE_INTERVAL - handsSinceShuffle;
-    }
-}

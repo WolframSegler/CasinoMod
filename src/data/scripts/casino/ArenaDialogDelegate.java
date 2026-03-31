@@ -34,13 +34,7 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate, ArenaAct
     protected List<String> battleLog;
     
     protected boolean pendingLeave = false;
-    protected boolean pendingNextGame = false;
-    protected boolean pendingWatchNext = false;
-    protected boolean pendingSkipToEnd = false;
     protected boolean pendingSuspend = false;
-    protected boolean pendingStartBattle = false;
-    protected int pendingBetAmount = 0;
-    protected int pendingChampionIndex = -1;
     
     protected int winnerIndex = -1;
     protected int totalReward = 0;
@@ -185,43 +179,13 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate, ArenaAct
         return pendingLeave;
     }
     
-    public boolean getPendingNextGame() {
-        return pendingNextGame;
-    }
-    
-    public boolean getPendingWatchNext() {
-        return pendingWatchNext;
-    }
-    
-    public boolean getPendingSkipToEnd() {
-        return pendingSkipToEnd;
-    }
-    
     public boolean getPendingSuspend() {
         return pendingSuspend;
     }
     
-    public boolean getPendingStartBattle() {
-        return pendingStartBattle;
-    }
-    
-    public int getPendingBetAmount() {
-        return pendingBetAmount;
-    }
-    
-    public int getPendingChampionIndex() {
-        return pendingChampionIndex;
-    }
-    
     public void clearPendingActions() {
         pendingLeave = false;
-        pendingNextGame = false;
-        pendingWatchNext = false;
-        pendingSkipToEnd = false;
         pendingSuspend = false;
-        pendingStartBattle = false;
-        pendingBetAmount = 0;
-        pendingChampionIndex = -1;
     }
     
     public boolean isFinished() {
@@ -234,42 +198,21 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate, ArenaAct
  
     @Override
     public void onSelectChampion(int championIndex) {
-        pendingChampionIndex = championIndex;
     }
     
     @Override
     public void onConfirmBet(int championIndex, int amount) {
-        // FIXME handler is always non null. So is the rest of the code dead?
-        if (handler != null) {
-            handler.performAddBetToChampionInPlace(ArenaDialogDelegate.this, championIndex, amount);
-            return;
-        }
-
-        pendingChampionIndex = championIndex;
-        pendingBetAmount = amount;
-        callbacks.dismissDialog();
+        handler.performAddBetToChampionInPlace(this, championIndex, amount);
     }
     
     @Override
     public void onWatchNextRound() {
-        // FIXME handler is always non null. So is the else branch needed?
-        if (handler != null) {
-            handler.simulateArenaStepInPlace(ArenaDialogDelegate.this);
-        } else {
-            pendingWatchNext = true;
-            callbacks.dismissDialog();
-        }
+        handler.simulateArenaStepInPlace(this);
     }
     
     @Override
     public void onSkipToEnd() {
-        // FIXME handler is always non null. So is the else branch needed?
-        if (handler != null) {
-            handler.simulateAllRemainingStepsInPlace(ArenaDialogDelegate.this);
-        } else {
-            pendingSkipToEnd = true;
-            callbacks.dismissDialog();
-        }
+        handler.simulateAllRemainingStepsInPlace(this);
     }
     
 
@@ -287,23 +230,11 @@ public class ArenaDialogDelegate implements CustomVisualDialogDelegate, ArenaAct
     
     @Override
     public void onNextGame() {
-        // FIXME handler is always non null. So is the else branch needed?
-        if (handler != null) {
-            handler.startNewArenaMatchInPlace(ArenaDialogDelegate.this);
-        } else {
-            pendingNextGame = true;
-            callbacks.dismissDialog();
-        }
+        handler.startNewArenaMatchInPlace(this);
     }
     
     @Override
     public void onStartBattle() {
-        // FIXME handler is always non null. So is the rest needed?
-        if (handler != null) {
-            handler.startArenaBattleInPlace(ArenaDialogDelegate.this);
-            return;
-        }
-        pendingStartBattle = true;
-        callbacks.dismissDialog();
+        handler.startArenaBattleInPlace(this);
     }
 }

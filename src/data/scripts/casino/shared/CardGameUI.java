@@ -56,9 +56,7 @@ public final class CardGameUI {
         }
     }
 
-    public static void renderCardFaceUp(float x, float y, SpriteAPI cardSprite, float alphaMult) {
-        renderCardFaceUp(x, y, CARD_WIDTH, CARD_HEIGHT, cardSprite, alphaMult);
-    }
+    
 
     public static void renderCardFaceDown(float x, float y, float cardWidth, float cardHeight, float alphaMult) {
         Misc.renderQuad(x + 3, y - 3, cardWidth, cardHeight, COLOR_CARD_SHADOW, alphaMult * 0.3f);
@@ -118,8 +116,4 @@ public final class CardGameUI {
         renderCardAnimated(x, y, CARD_WIDTH, CARD_HEIGHT, cardSprite, anim, alphaMult);
     }
 
-    public static void enableBlend() {
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
     }
-}

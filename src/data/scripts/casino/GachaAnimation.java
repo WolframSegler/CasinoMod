@@ -212,7 +212,7 @@ public class GachaAnimation extends BaseCustomUIPanelPlugin
 
         try {
             backgroundSprite = Global.getSettings().getSprite("graphics/campaign/map/screenFlash2.png");
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
 
         createButtons();

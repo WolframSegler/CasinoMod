@@ -12,17 +12,15 @@ public enum Rank {
     }
 
     public final int getValue(GameType game) {
-        switch (game) {
-        case POKER:
-            return getPokerValue();
-        case BLACKJACK:
-            return getBlackjackValue();
-        default:
-            throw new IllegalArgumentException(game.toString());
-        }
+        return switch (game)
+        {
+            case POKER -> getPokerValue();
+            case BLACKJACK -> getBlackjackValue();
+            default -> throw new IllegalArgumentException(game.toString());
+        };
     }
 
-    private final int getPokerValue() {
+    private int getPokerValue() {
         return switch (this) {
             case TWO -> 2; case THREE -> 3; case FOUR -> 4; case FIVE -> 5;
             case SIX -> 6; case SEVEN -> 7; case EIGHT -> 8; case NINE -> 9;
@@ -31,7 +29,7 @@ public enum Rank {
         };
     }
 
-    private final int getBlackjackValue() {
+    private int getBlackjackValue() {
         return switch (this) {
             case TWO -> 2; case THREE -> 3; case FOUR -> 4; case FIVE -> 5;
             case SIX -> 6; case SEVEN -> 7; case EIGHT -> 8; case NINE -> 9;

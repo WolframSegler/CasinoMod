@@ -85,7 +85,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         playerCardsAnimated = false;
     }
 
-    private final void checkAndTriggerAnimations(PokerState state, Round previousRound, int previousCommunityCount) {
+    private void checkAndTriggerAnimations(PokerState state, Round previousRound, int previousCommunityCount) {
         if (!playerCardsAnimated && state.playerHand != null && !state.playerHand.isEmpty()) {
             playerCardsAnimated = true;
             for (int i = 0; i < state.playerHand.size() && i < HAND_SIZE; i++) {
@@ -169,7 +169,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         createButtonsInInit();
     }
 
-    private final void createButtonsInInit() {
+    private void createButtonsInInit() {
         if (buttonsCreated) return;
 
         final PositionAPI pos =panel.getPosition();
@@ -223,7 +223,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         buttonsCreated = true;
     }
 
-    private final void updateButtonVisibility() {
+    private void updateButtonVisibility() {
         if (game == null) return;
         final PokerState state = game.getState();
 
@@ -289,7 +289,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final float[] getRaiseOptions(PokerState state) {
+    private float[] getRaiseOptions(PokerState state) {
         final float[] temp = new float[MAX_COMMUNITY_CARDS];
         int count = 0;
         final int pot = state.pot;
@@ -299,29 +299,29 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         final int maxBet = state.playerBet + stack;
 
         final int bbTotal = opponentBet + bb;
-        if (bbTotal <= maxBet && !contains(temp, count, bbTotal)) {
+        if (bbTotal <= maxBet && notContains(temp, count, bbTotal)) {
             temp[count++] = bbTotal;
         }
 
         final int halfPot = pot / 2;
         final int halfPotTotal = opponentBet + halfPot;
-        if (halfPot >= bb && halfPotTotal <= maxBet && !contains(temp, count, halfPotTotal)) {
+        if (halfPot >= bb && halfPotTotal <= maxBet && notContains(temp, count, halfPotTotal)) {
             temp[count++] = halfPotTotal;
         }
 
         final int potTotal = opponentBet + pot;
-        if (pot >= bb && potTotal <= maxBet && !contains(temp, count, potTotal)) {
+        if (pot >= bb && potTotal <= maxBet && notContains(temp, count, potTotal)) {
             temp[count++] = potTotal;
         }
 
         final int twoPot = pot * 2;
         final int twoPotTotal = opponentBet + twoPot;
-        if (twoPot > pot && twoPotTotal <= maxBet && !contains(temp, count, twoPotTotal)) {
+        if (twoPot > pot && twoPotTotal <= maxBet && notContains(temp, count, twoPotTotal)) {
             temp[count++] = twoPotTotal;
         }
 
         final int allInTotal = state.playerBet + stack;
-        if (stack > 0 && !contains(temp, count, allInTotal)) {
+        if (stack > 0 && notContains(temp, count, allInTotal)) {
             temp[count++] = allInTotal;
         }
 
@@ -330,14 +330,14 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         return result;
     }
 
-    private final boolean contains(float[] arr, int len, int val) {
+    private boolean notContains(float[] arr, int len, int val) {
         for (int i = 0; i < len; i++) {
-            if ((int) arr[i] == val) return true;
+            if ((int) arr[i] == val) return false;
         }
-        return false;
+        return true;
     }
 
-    private final String formatRaiseLabel(int totalBet, int bigBlind, int pot, int playerStack, int opponentBet, int playerBet) {
+    private String formatRaiseLabel(int totalBet, int bigBlind, int pot, int playerStack, int opponentBet, int playerBet) {
         final int raisePortion = totalBet - opponentBet;
 
         final String label;
@@ -359,7 +359,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         return Strings.format("poker_raise_labels.format", label, totalBet, bbAmount);
     }
 
-    private final void createStackDisplays() {
+    private void createStackDisplays() {
         final float STACK_LABEL_WIDTH = 450f;
         final float STACK_LABEL_HEIGHT = 25f;
 
@@ -378,7 +378,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
             .inTL(MARGIN, MARGIN + 30f);
     }
 
-    private final void updateStackDisplays(int playerStack, int opponentStack, int playerBet, int opponentBet) {
+    private void updateStackDisplays(int playerStack, int opponentStack, int playerBet, int opponentBet) {
         if (playerStack != lastPlayerStack || playerBet != lastPlayerBet) {
             lastPlayerStack = playerStack;
             lastPlayerBet = playerBet;
@@ -393,7 +393,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void createRoundLabel() {
+    private void createRoundLabel() {
         final float ROUND_LABEL_WIDTH = 600f;
         final float ROUND_LABEL_HEIGHT = 25f;
 
@@ -407,7 +407,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
             .setSize(ROUND_LABEL_WIDTH, ROUND_LABEL_HEIGHT);
     }
 
-    private final void updateRoundLabel(Round round, int bigBlind, int pot) {
+    private void updateRoundLabel(Round round, int bigBlind, int pot) {
         if (round == lastRound && bigBlind == lastBigBlind && pot == lastPot) return;
 
         lastRound = round;
@@ -435,7 +435,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         roundLabel.setColor(roundColor);
     }
 
-    private final void createWaitingLabel() {
+    private void createWaitingLabel() {
         final float WAITING_LABEL_WIDTH = 200f;
         final float WAITING_LABEL_HEIGHT = 25f;
 
@@ -450,7 +450,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         waitingLabel.setOpacity(0f);
     }
 
-    private final void createOpponentActionLabel() {
+    private void createOpponentActionLabel() {
         final float ACTION_LABEL_WIDTH = 250f;
         final float ACTION_LABEL_HEIGHT = 25f;
 
@@ -462,7 +462,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         hideOpponentAction();
     }
 
-    private final void createPlayerActionLabel() {
+    private void createPlayerActionLabel() {
         final float ACTION_LABEL_WIDTH = 250f;
         final float ACTION_LABEL_HEIGHT = 25f;
 
@@ -492,7 +492,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         playerActionLabel.setOpacity(0f);
     }
 
-    private final void createReturnMessageLabel() {
+    private void createReturnMessageLabel() {
         final float RETURN_LABEL_WIDTH = 400f;
         final float RETURN_LABEL_HEIGHT = 25f;
 
@@ -512,7 +512,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         returnMessageLabel.setOpacity(1f);
     }
 
-    private final void createResultLabel() {
+    private void createResultLabel() {
         final float RESULT_LABEL_WIDTH = 450f;
         final float RESULT_LABEL_HEIGHT = 25f;
 
@@ -524,7 +524,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         resultLabel.setOpacity(0f);
     }
 
-    private final void updateResultLabel(PokerState state) {
+    private void updateResultLabel(PokerState state) {
         if (state.round != Round.SHOWDOWN) {
             resultLabel.setOpacity(0f);
             resultLblCached = false;
@@ -589,7 +589,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         resultLabel.setOpacity(1f);
     }
 
-    private final String formatHandDescription(HandScore score) {
+    private String formatHandDescription(HandScore score) {
         if (score == null || score.rank == null) return Strings.get("poker_hand_desc.unknown");
 
         final String rankName = formatHandRank(score.rank);
@@ -632,7 +632,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         };
     }
 
-    private final String formatHandRank(PokerGame.PokerGameLogic.HandRank rank) {
+    private String formatHandRank(PokerGame.PokerGameLogic.HandRank rank) {
         if (rank == null) return Strings.get("poker_hand_desc.unknown");
         return switch (rank) {
             case HIGH_CARD -> Strings.get("poker_hand_rank.high_card");
@@ -647,7 +647,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         };
     }
 
-    private final void createNextHandButton() {
+    private void createNextHandButton() {
         final float BUTTON_W = 120f;
         final float BUTTON_H = 30f;
 
@@ -659,7 +659,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         nextHandBtn.setOpacity(0f);
     }
 
-    private final void updateNextHandButton(PokerState state) {
+    private void updateNextHandButton(PokerState state) {
         final boolean atShowdown = state.round == Round.SHOWDOWN;
         final boolean canContinue = state.playerStack >= state.bigBlind &&
             state.opponentStack >= state.bigBlind;
@@ -704,7 +704,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         renderOpponentHand(cx, y + opponentCardBottomY, state.opponentHand, showOpponentCards, alphaMult);
     }
 
-    private final void renderCommunityCards(float cx, float cy, List<Card> cards, float alphaMult) {
+    private void renderCommunityCards(float cx, float cy, List<Card> cards, float alphaMult) {
         final int numCards = cards.size();
         final float totalWidth = numCards * CARD_WIDTH + (numCards - 1) * CARD_SPACING;
         final float startX = cx - totalWidth / 2f;
@@ -716,7 +716,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void renderPlayerHand(float cx, float y, List<Card> cards, float alphaMult) {
+    private void renderPlayerHand(float cx, float y, List<Card> cards, float alphaMult) {
         final float totalWidth = HAND_SIZE * CARD_WIDTH + CARD_SPACING;
         final float startX = cx - totalWidth / 2f;
 
@@ -727,7 +727,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void renderOpponentHand(float cx, float y, List<Card> cards, boolean showCards, float alphaMult) {
+    private void renderOpponentHand(float cx, float y, List<Card> cards, boolean showCards, float alphaMult) {
         final float totalWidth = HAND_SIZE * CARD_WIDTH + CARD_SPACING;
         final float startX = cx - totalWidth / 2f;
 
@@ -802,7 +802,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         updateButtonVisibility();
     }
 
-    private final void processAction(Object data) {
+    private void processAction(Object data) {
         if (data == null) return;
 
         if (POKER_FOLD == data) {
@@ -835,16 +835,15 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         if (data instanceof String strData && strData.startsWith(POKER_RAISE_PREFIX)) {
             final int amount = Integer.parseInt(strData.substring(POKER_RAISE_PREFIX.length()));
             handleRaiseAmountClick(amount);
-            return;
         }
     }
 
-    private final void handleFoldClick() {
+    private void handleFoldClick() {
         showPlayerAction(Strings.get("poker_actions.you_fold"));
         actionCallback.onPlayerAction(PokerGame.Action.FOLD, 0);
     }
 
-    private final void handleCheckCallClick() {
+    private void handleCheckCallClick() {
         final PokerState state = game.getState();
         final int callAmount = state.opponentBet - state.playerBet;
 
@@ -858,7 +857,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void handleRaiseAmountClick(int amount) {
+    private void handleRaiseAmountClick(int amount) {
         showPlayerAction(Strings.format("poker_actions.you_raise_to", amount));
         actionCallback.onPlayerAction(PokerGame.Action.RAISE, amount);
     }

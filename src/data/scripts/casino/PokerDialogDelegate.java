@@ -12,7 +12,7 @@ import data.scripts.casino.interaction.PokerHandler;
 import data.scripts.casino.shared.BaseGameDelegate;
 
 public class PokerDialogDelegate extends BaseGameDelegate implements PokerActionCallback {
-    private static final String COMPLECTION_STR = "PokerGameCompleted";
+    private static final String COMPLETION_STR = "PokerGameCompleted";
 
     protected final PokerPanelUI pokerPanel;
     protected final PokerHandler handler;
@@ -83,7 +83,7 @@ public class PokerDialogDelegate extends BaseGameDelegate implements PokerAction
 
     @Override
     protected String getCompletionEventName() {
-        return COMPLECTION_STR;
+        return COMPLETION_STR;
     }
 
     public void updateGame(PokerGame newGame) {

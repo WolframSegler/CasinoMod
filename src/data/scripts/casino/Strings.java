@@ -16,16 +16,8 @@ public class Strings {
     private static final String STRINGS_PATH = "data/config/strings.json";
     private static JSONObject strings = null;
 
-    /**
-     * I Removed the null checks and the code always assumes a key exists. Throws an exception otherwise.
-     * This is desirable as it allows us to catch the missing strings early in development. Silently failing here is bad.
-     * 
-     * @author WolframSegler
-     * TODO remove this message
-     */
-
     static { load();}
-    private static final void load() {
+    private static void load() {
         try {
             strings = Global.getSettings().loadJSON(STRINGS_PATH, CasinoConfig.MOD_ID);
             log.info("Casino strings loaded successfully");
@@ -34,7 +26,7 @@ public class Strings {
         }
     }
 
-    public static final String get(String key) {
+    public static String get(String key) {
         if (strings == null) { load();}
         
         final String[] parts = key.split("\\.");
@@ -50,11 +42,11 @@ public class Strings {
         }
     }
 
-    public static final String format(String key, Object... args) {
+    public static String format(String key, Object... args) {
         return String.format(get(key), args);
     }
 
-    public static final boolean has(String key) {
+    public static boolean has(String key) {
         if (strings == null) { load();}
         
         final String[] parts = key.split("\\.");
@@ -71,7 +63,7 @@ public class Strings {
         }
     }
 
-    public static final List<String> getList(String key) {
+    public static List<String> getList(String key) {
         if (strings == null) { load();}
         
         final String[] parts = key.split("\\.");

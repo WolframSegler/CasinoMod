@@ -577,6 +577,7 @@
         "opponent_raises_by": "对手加注 %d",
         "opponent_checks": "对手过牌",
         "opponent_folds": "对手弃牌",
+        "opponent_bets": "对手下注 %d",
         "you_call_stargems": "您跟注 %d 星石。",
         "you_check_dot": "您过牌。",
         "you_fold_dot": "您弃牌。",

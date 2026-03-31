@@ -110,7 +110,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         createLabels();
     }
 
-    private final void createButtonsInInit() {
+    private void createButtonsInInit() {
         if (buttonsCreated) return;
         final PositionAPI pos = panel.getPosition();
 
@@ -187,7 +187,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         buttonsCreated = true;
     }
 
-    private final void createLabels() {
+    private void createLabels() {
         final float dealerLabelY = PANEL_HEIGHT * 0.25f + CARD_HEIGHT + 15f;
         final float cx = PANEL_WIDTH / 2f;
 
@@ -261,7 +261,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void updateButtonVisibility() {
+    private void updateButtonVisibility() {
         if (game == null) return;
 
         final GameStateData state = game.getState();
@@ -270,7 +270,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
 
         switch (state.state) {
         case BETTING -> {
-            setGameButtonsOpacity(0f);
+            hideGameButtons();
             
             overdraftOffButton.setOpacity(state.overdraftEnabled ? 0f : 1f);
             overdraftOnButton.setOpacity(state.overdraftEnabled ? 1f : 0f);
@@ -282,7 +282,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
         case PLAYER_TURN -> {
             if (state.playerHand == null) return;
-            setBetButtonsOpacity(0f);
+            hideBetButtons();
             overdraftOffButton.setOpacity(0f);
             overdraftOnButton.setOpacity(0f);
 
@@ -315,40 +315,39 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
             newHandButton.setOpacity(0f);
         }
         case RESULT -> {
-            setBetButtonsOpacity(0f);
-            setGameButtonsOpacity(0f);
+            hideAllButtons();
             overdraftOffButton.setOpacity(0f);
             overdraftOnButton.setOpacity(0f);
             newHandButton.setOpacity(1f);
         }
         default -> {
-            setAllButtonsOpacity(0f);
+            hideAllButtons();
             overdraftOffButton.setOpacity(0f);
             overdraftOnButton.setOpacity(0f);
         }
         }
     }
     
-    private final void setBetButtonsOpacity(float opacity) {
+    private void hideBetButtons() {
         for (ButtonAPI btn : betButtons) {
-            btn.setOpacity(opacity);
+            btn.setOpacity(0f);
         }
     }
     
-    private final void setGameButtonsOpacity(float opacity) {
-        hitButton.setOpacity(opacity);
-        standButton.setOpacity(opacity);
-        doubleButton.setOpacity(opacity);
-        splitButton.setOpacity(opacity);
-        newHandButton.setOpacity(opacity);
+    private void hideGameButtons() {
+        hitButton.setOpacity(0f);
+        standButton.setOpacity(0f);
+        doubleButton.setOpacity(0f);
+        splitButton.setOpacity(0f);
+        newHandButton.setOpacity(0f);
     }
     
-    private final void setAllButtonsOpacity(float opacity) {
-        setBetButtonsOpacity(opacity);
-        setGameButtonsOpacity(opacity);
+    private void hideAllButtons() {
+        hideBetButtons();
+        hideGameButtons();
     }
 
-    private final void updateLabels() {
+    private void updateLabels() {
         if (game == null) return;
         final GameStateData state = game.getState();
 
@@ -381,7 +380,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         playerStackLabel.setText(stackText);
     }
     
-    private final void handleBettingLabels() { // Show betting prompt, hide other labels
+    private void handleBettingLabels() { // Show betting prompt, hide other labels
         resultLabel.setText(Strings.get("blackjack.place_bet"));
         resultLabel.setColor(Color.YELLOW);
         resultLabel.setOpacity(1f);
@@ -393,7 +392,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         hideSplitLabels();
     }
     
-    private final void handleResultLabels(GameStateData state, boolean isSplitMode) {
+    private void handleResultLabels(GameStateData state, boolean isSplitMode) {
         // Show result labels
         if (isSplitMode) {
             resultLabel.setOpacity(0f);
@@ -430,7 +429,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
     
-    private final void handlePlayerTurnLabels(GameStateData state, boolean isSplitMode) {
+    private void handlePlayerTurnLabels(GameStateData state, boolean isSplitMode) {
         // Show player turn labels
         resultLabel.setOpacity(0f);
         waitingLabel.setOpacity(0f);
@@ -458,7 +457,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
     
-    private final void handleDealerTurnLabels() {
+    private void handleDealerTurnLabels() {
         resultLabel.setOpacity(0f);
         statusLabel.setOpacity(0f);
         waitingLabel.setText(Strings.get("blackjack.dealer_playing"));
@@ -466,39 +465,39 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         hideSplitLabels();
     }
     
-    private final void hideAllDynaLbls() {
+    private void hideAllDynaLbls() {
         resultLabel.setOpacity(0f);
         statusLabel.setOpacity(0f);
         waitingLabel.setOpacity(0f);
         hideSplitLabels();
     }
     
-    private final void hideSplitLabels() { // Hide split hand value and result labels
+    private void hideSplitLabels() { // Hide split hand value and result labels
         for (int h = 0; h < HAND_SIZE; h++) {
             splitHandValueLabels[h].setOpacity(0f);
             splitHandResultLabels[h].setOpacity(0f);
         }
     }
     
-    private final String getHandValueText(Hand hand) {
+    private String getHandValueText(Hand hand) {
         final int value = hand.getValue();
         return hand.isBust() ? Strings.get("blackjack.bust") : 
             (hand.isSoft() ? Strings.format("blackjack.player_total_soft", value) :
             Strings.format("blackjack.player_total", value));
     }
     
-    private final String getResultText(int result) {
+    private String getResultText(int result) {
         if (result == 0) return Strings.get("blackjack.push");
         return Strings.format(result > 0 ? "blackjack.win_stargems" : "blackjack.lose_stargems", Math.abs(result));
     }
     
-    private final Color getResultColor(int result) { // Get color for result display
+    private Color getResultColor(int result) { // Get color for result display
         if (result > 0) return Color.GREEN;
         if (result < 0) return Color.RED;
         return Color.YELLOW;
     }
 
-    private final void updateDealerTotal() {
+    private void updateDealerTotal() {
         if (game == null) return;
 
         final Hand dealerHand = game.getDealerHand();
@@ -521,7 +520,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void updatePlayerTotal() {
+    private void updatePlayerTotal() {
         if (game == null) return;
 
         final GameStateData state = game.getState();
@@ -575,7 +574,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void renderPlayerCards(float cx, float cardY, Hand hand, float alphaMult) {
+    private void renderPlayerCards(float cx, float cardY, Hand hand, float alphaMult) {
         if (hand == null || hand.cards.isEmpty()) return;
 
         final int numCards = hand.cards.size();
@@ -593,7 +592,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void renderSplitHands(float cx, float cardY, GameStateData state, float alphaMult) {
+    private void renderSplitHands(float cx, float cardY, GameStateData state, float alphaMult) {
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
@@ -620,7 +619,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private final void renderDealerCards(float cx, float cardY, Hand hand, float alphaMult) {
+    private void renderDealerCards(float cx, float cardY, Hand hand, float alphaMult) {
         if (hand == null || hand.cards.isEmpty()) return;
 
         final int numCards = hand.cards.size();

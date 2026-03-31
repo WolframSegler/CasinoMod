@@ -568,6 +568,7 @@
         "opponent_raises_by": "Opponent raises by %d",
         "opponent_checks": "Opponent checks",
         "opponent_folds": "Opponent folds",
+        "opponent_bets": "Opponent bets %d",
         "you_call_stargems": "You call %d Stargems.",
         "you_check_dot": "You check.",
         "you_fold_dot": "You fold.",
