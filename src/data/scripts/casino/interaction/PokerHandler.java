@@ -322,25 +322,6 @@ private String formatBB(int amount, int bigBlind) {
     private void handlePokerPanelDismissed() {
         if (currentDelegate == null) return;
         
-        if (currentDelegate.getPendingAction() != null) {
-            PokerGame.Action action = currentDelegate.getPendingAction();
-            int raiseAmount = currentDelegate.getPendingRaiseAmount();
-            
-            switch (action) {
-                case FOLD -> processPlayerFold();
-                case CHECK -> processPlayerCheck();
-                case CALL -> processPlayerCall();
-                case RAISE -> processPlayerRaise(raiseAmount);
-                case ALL_IN -> throw new IllegalArgumentException();
-            }
-            return;
-        }
-        
-        if (currentDelegate.getPendingNextHand()) {
-            startNextHand();
-            return;
-        }
-        
         if (currentDelegate.getPendingSuspend()) {
             suspendGame();
             return;
@@ -348,11 +329,6 @@ private String formatBB(int amount, int bigBlind) {
         
         if (currentDelegate.getPendingHowToPlay()) {
             main.help.showPokerHelp();
-            return;
-        }
-        
-        if (currentDelegate.getPendingCleanLeave()) {
-            handleLeaveTable();
             return;
         }
         
@@ -364,112 +340,6 @@ private String formatBB(int amount, int bigBlind) {
                 main.getTextPanel().addPara(Strings.get("poker_suspend.dealer_note_early"), Color.YELLOW);
             }
         }
-    }
-    
-    private void processPlayerFold() {
-        if (pokerGame == null) return;
-        pokerGame.processPlayerAction(PokerGame.Action.FOLD, 0);
-        pendingPlayerAction = Strings.get("poker_actions.you_fold");
-        PokerGame.PokerState state = pokerGame.getState();
-        if (state.folder != null) {
-            state.lastPotWon = state.pot;
-            if (state.folder == PokerGame.CurrentPlayer.PLAYER) {
-                state.opponentStack += state.pot;
-            } else {
-                state.playerStack += state.pot;
-            }
-            state.pot = 0;
-        }
-        showPokerVisualPanel();
-    }
-    
-    private void processPlayerCheck() {
-        if (pokerGame == null) return;
-        pokerGame.processPlayerAction(PokerGame.Action.CHECK, 0);
-        pendingPlayerAction = Strings.get("poker_actions.you_check");
-        processOpponentTurn();
-        showPokerVisualPanel();
-    }
-    
-    private void processPlayerCall() {
-        if (pokerGame == null) return;
-        PokerGame.PokerState state = pokerGame.getState();
-        int callAmount = Math.min(state.opponentBet - state.playerBet, state.playerStack);
-        pokerGame.processPlayerAction(PokerGame.Action.CALL, 0);
-        pendingPlayerAction = Strings.format("poker_actions.you_call", callAmount);
-        processOpponentTurn();
-        showPokerVisualPanel();
-    }
-    
-    private void processPlayerRaise(int raiseAmount) {
-        if (pokerGame == null) return;
-        pokerGame.processPlayerAction(PokerGame.Action.RAISE, raiseAmount);
-        pendingPlayerAction = Strings.format("poker_actions.you_raise_to", raiseAmount);
-        processOpponentTurn();
-        showPokerVisualPanel();
-    }
-    
-    private void processOpponentTurn() {
-        if (pokerGame == null) return;
-        PokerGame.PokerState state = pokerGame.getState();
-        
-        if (state.round == PokerGame.Round.SHOWDOWN) {
-            processShowdown();
-            return;
-        }
-        
-        while (state.currentPlayer == PokerGame.CurrentPlayer.OPPONENT) {
-            PokerGame.SimplePokerAI.AIResponse response = pokerGame.getOpponentAction();
-            pokerGame.processOpponentAction(response);
-            
-            pendingOpponentAction = switch (response.action) {
-                case CALL -> Strings.get("poker_actions.opponent_calls");
-                case RAISE -> Strings.format("poker_actions.opponent_raises_by", response.raiseAmount);
-                case CHECK -> Strings.get("poker_actions.opponent_checks");
-                case FOLD -> Strings.get("poker_actions.opponent_folds");
-                case BET -> Strings.format("poker_actions.opponent_bets", response.raiseAmount);
-            };
-            
-            state = pokerGame.getState();
-            if (state.round == PokerGame.Round.SHOWDOWN) {
-                processShowdown();
-                return;
-            }
-        }
-    }
-    
-    private void processShowdown() {
-        if (pokerGame == null) return;
-        PokerGame.PokerState state = pokerGame.getState();
-        
-        if (state.folder != null) {
-            state.lastPotWon = state.pot;
-            if (state.folder == PokerGame.CurrentPlayer.PLAYER) {
-                state.opponentStack += state.pot;
-            } else {
-                state.playerStack += state.pot;
-            }
-            state.pot = 0;
-            return;
-        }
-        
-        PokerGame.PokerGameLogic.HandScore playerScore = PokerGame.PokerGameLogic.evaluate(state.playerHand, state.communityCards);
-        PokerGame.PokerGameLogic.HandScore oppScore = PokerGame.PokerGameLogic.evaluate(state.opponentHand, state.communityCards);
-        
-        state.lastPotWon = state.pot;
-        
-        int cmp = playerScore.compareTo(oppScore);
-        if (cmp > 0) {
-            state.playerStack += state.pot;
-        } else if (cmp < 0) {
-            state.opponentStack += state.pot;
-        } else {
-            int halfPot = state.pot / 2;
-            int remainder = state.pot % 2;
-            state.playerStack += halfPot + remainder;
-            state.opponentStack += halfPot;
-        }
-        state.pot = 0;
     }
 
     public void updateUI() {

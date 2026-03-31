@@ -198,17 +198,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
 
     private final ArenaActionCallback actionCallback;
     private CustomPanelAPI panel;
-
-    /**
-     * Note about position
-     * 
-     * The position instance is constant and does not change. It is owned by panel and can be accessed trough it.
-     * The positionChanged method does not create a new positionAPI instance. It just returns the positionAPI of panel.
-     * A position member is this not needed.
-     * 
-     * @author WolframSegler
-     * TODO remove this after reading
-     */
     
     private List<SpiralGladiator> combatants;
     private int currentRound;
@@ -326,11 +315,11 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     private LabelAPI roundLabel;
     private LabelAPI betLabel;
     
-    private LabelAPI[] shipNameLabels = new LabelAPI[5];
-    private LabelAPI[] shipHpLabels = new LabelAPI[5];
-    private LabelAPI[] shipOddsLabels = new LabelAPI[5];
+    private final LabelAPI[] shipNameLabels = new LabelAPI[5];
+    private final LabelAPI[] shipHpLabels = new LabelAPI[5];
+    private final LabelAPI[] shipOddsLabels = new LabelAPI[5];
     
-    private LabelAPI[] battleLogTextLabels = new LabelAPI[12];
+    private final LabelAPI[] battleLogTextLabels = new LabelAPI[12];
     
     private static final float LOG_SPRITE_SIZE = 28f;
     private static final float LOG_LINE_HEIGHT = 32f;
@@ -340,7 +329,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     private LabelAPI resultLabel;
     
     private static final int MAX_REWARD_LINES = 25;
-    private LabelAPI[] rewardBreakdownLabels = new LabelAPI[MAX_REWARD_LINES];
+    private final LabelAPI[] rewardBreakdownLabels = new LabelAPI[MAX_REWARD_LINES];
     
     private LabelAPI instructionLabel;
 
@@ -359,10 +348,10 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     
     private static final int[] BET_AMOUNTS = {100, 500, 1000, 2000, 5000};
     
-    private Map<String, SpriteAPI> spriteCache = new HashMap<>();
+    private final Map<String, SpriteAPI> spriteCache = new HashMap<>();
     private static final float SPRITE_SCALE = 0.75f;
     
-    private float[] cachedOdds = new float[5];
+    private final float[] cachedOdds = new float[5];
     private boolean oddsCached = false;
     
     private boolean showingBetAmounts = false;
@@ -383,21 +372,19 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     private ButtonAPI dismissErrorButton;
     
     private float logY;
-    private float logW;
-    
-    private List<ParsedLogEntry> cachedParsedEntries = new ArrayList<>();
-    private Map<String, Boolean> hullIdDeadStatus = new HashMap<>();
+
+    private final List<ParsedLogEntry> cachedParsedEntries = new ArrayList<>();
     private int lastBattleLogSize = -1;
     
     private int lastCurrentRound = -1;
     private int lastTotalBet = -1;
 
-    private int[] lastShipHp = new int[5];
-    private int[] lastShipMaxHp = new int[5];
-    private boolean[] lastShipDead = new boolean[5];
-    private float[] lastShipOdds = new float[5];
-    private int[] lastShipBetCount = new int[5];
-    private String[] lastShipHullIds = new String[5];
+    private final int[] lastShipHp = new int[5];
+    private final int[] lastShipMaxHp = new int[5];
+    private final boolean[] lastShipDead = new boolean[5];
+    private final float[] lastShipOdds = new float[5];
+    private final int[] lastShipBetCount = new int[5];
+    private final String[] lastShipHullIds = new String[5];
     private boolean shipStateInitialized = false;
 
     // Label caching (prevent redundant per-frame updates)
@@ -412,7 +399,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     private float logAnimationTimer = 0f;
     private int displayedLogIndex = 0;
     private boolean isAnimating = false;
-    private List<ParsedLogEntry> pendingEntries = new ArrayList<>();
+    private final List<ParsedLogEntry> pendingEntries = new ArrayList<>();
     private boolean skipRequested = false;
 
     // Sprite Animation State (sidebar ships)
@@ -423,16 +410,16 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     private boolean targetFlashState = false;
 
     // HP Animation State
-    private int[] animatedHp = new int[5];
-    private int[] targetAnimatedHp = new int[5];
-    private int[] prevAnimatedHp = new int[5];
-    private float[] hpAnimTimer = new float[5];
-    private boolean[] hpAnimating = new boolean[5];
+    private final int[] animatedHp = new int[5];
+    private final int[] targetAnimatedHp = new int[5];
+    private final int[] prevAnimatedHp = new int[5];
+    private final float[] hpAnimTimer = new float[5];
+    private final boolean[] hpAnimating = new boolean[5];
 
     // Kill Tracking
-    private Set<String> killedHullIds = new HashSet<>();
-    private Set<String> fadeOutHullIds = new HashSet<>();
-    private float[] fadeOutAlpha = new float[5];
+    private final Set<String> killedHullIds = new HashSet<>();
+    private final Set<String> fadeOutHullIds = new HashSet<>();
+    private final float[] fadeOutAlpha = new float[5];
     
     private int getTotalBetOnShip(int shipIndex) {
         if (bets == null || combatants == null || shipIndex < 0 || shipIndex >= combatants.size()) {
@@ -800,7 +787,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
         final float logPanelW = CENTER_COLUMN_WIDTH - MARGIN;
         
         logY = LOG_LINE_HEIGHT;
-        logW = logPanelW - LOG_LEFT_MARGIN * 2;
+        float logW = logPanelW - LOG_LEFT_MARGIN * 2;
         
         final float textWidthTwoSprites = logW - LOG_SPRITE_SIZE * 2 - LOG_SPRITE_GAP * 2 - 30f;
         final float textWidthOneSprite = logW - LOG_SPRITE_SIZE - LOG_SPRITE_GAP - 30f;
@@ -973,9 +960,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
         }
         
         
-        final boolean showLeave = battleEnded ?
-            true : (!showingOverdraftConfirmation && !showingErrorMessage) ?
-            !showingBetAmounts : false;
+        final boolean showLeave = battleEnded || (!showingOverdraftConfirmation && !showingErrorMessage && !showingBetAmounts);
         leaveButton.setOpacity(showLeave ? 1f : 0f);
         
         suspendButton.setOpacity(!battleEnded && currentRound > 0 && !showingBetAmounts && !showingOverdraftConfirmation && !showingErrorMessage ? 1f : 0f);
@@ -1197,16 +1182,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    /**
-     * Note:
-     * The CustomUIPanelAPI method such as renderBelow get called exclusively by their owner panel.
-     * Which in this case is the panel member. Therefore when this method is called, panel always exists.
-     * Panels also are guaranteed to always have a position. They never not have a position. Therefore, both null checks are not needed.
-     * 
-     * @author WolframSegler
-     * TODO remove message after reading
-     */
-    
     public void renderBelow(float alphaMult) {
         final PositionAPI pos = panel.getPosition();
         final float x = pos.getX();
@@ -1600,15 +1575,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
         rewardBreakdownCached = true;
     }
     
-    private void updateHullIdDeadStatus() {
-        hullIdDeadStatus.clear();
-        if (combatants != null) {
-            for (SpiralGladiator g : combatants) {
-                hullIdDeadStatus.put(g.hullId, g.isDead);
-            }
-        }
-    }
-    
     private void updateCachedParsedEntries() {
         int currentSize = battleLog != null ? battleLog.size() : 0;
         if (currentSize == lastBattleLogSize) {
@@ -1627,7 +1593,6 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
     }
     
 private List<ParsedLogEntry> getFilteredEntries() {
-        updateHullIdDeadStatus();
         updateCachedParsedEntries();
         
         final List<ParsedLogEntry> filtered = new ArrayList<>();
@@ -1923,7 +1888,7 @@ private List<ParsedLogEntry> getFilteredEntries() {
         }
     }
     
-    private final void handleBetAmountClick(int championIndex, int amount) {
+    private void handleBetAmountClick(int championIndex, int amount) {
         final BetValidationResult validation = validateBet(amount);
         
         if (validation.isAffordable()) {
@@ -1951,7 +1916,7 @@ private List<ParsedLogEntry> getFilteredEntries() {
         }
     }
     
-    private final void clearOverdraftConfirmation() {
+    private void clearOverdraftConfirmation() {
         showingOverdraftConfirmation = false;
         pendingBetAmount = 0;
         pendingChampionIndex = -1;
@@ -1960,14 +1925,14 @@ private List<ParsedLogEntry> getFilteredEntries() {
         updateMessageLabel();
     }
     
-    private final void clearErrorMessage() {
+    private void clearErrorMessage() {
         showingErrorMessage = false;
         currentErrorMessage = "";
         updateButtonVisibility();
         updateMessageLabel();
     }
     
-    private final void updateMessageLabel() {
+    private void updateMessageLabel() {
         if (messageLabel == null) return;
         
         if (showingOverdraftConfirmation) {
@@ -1981,7 +1946,7 @@ private List<ParsedLogEntry> getFilteredEntries() {
         }
     }
     
-    private final void cacheOdds() {
+    private void cacheOdds() {
         if (combatants == null) return;
         
         for (int i = 0; i < combatants.size() && i < 5; i++) {
@@ -1991,7 +1956,7 @@ private List<ParsedLogEntry> getFilteredEntries() {
         oddsCached = true;
     }
     
-    private final void syncAnimationStateFromCombatants() {
+    private void syncAnimationStateFromCombatants() {
         if (combatants == null) return;
         
         for (int i = 0; i < combatants.size(); i++) {
@@ -2072,7 +2037,7 @@ private List<ParsedLogEntry> getFilteredEntries() {
         updateLabels();
     }
     
-    private final void resetAnimationState() {
+    private void resetAnimationState() {
         logAnimationTimer = 0f;
         displayedLogIndex = 0;
         isAnimating = false;
@@ -2145,7 +2110,6 @@ private List<ParsedLogEntry> getFilteredEntries() {
         
         lastBattleLogSize = -1;
         cachedParsedEntries.clear();
-        hullIdDeadStatus.clear();
         
         oddsCached = false;
         cacheOdds();
@@ -2155,7 +2119,7 @@ private List<ParsedLogEntry> getFilteredEntries() {
         updateMessageLabel();
     }
     
-    private final String buildBetDisplayText(SpiralGladiator ship) {
+    private String buildBetDisplayText(SpiralGladiator ship) {
         if (bets == null || bets.isEmpty()) return "";
         
         final Map<Integer, List<BetInfo>> betsByRound = new HashMap<>();
@@ -2194,7 +2158,7 @@ private List<ParsedLogEntry> getFilteredEntries() {
         return betStrings;
     }
 
-    private final String getPositionString(int finalPosition) {
+    private String getPositionString(int finalPosition) {
         return switch (finalPosition) {
             case 0 -> "1st";
             case 1 -> "2nd";

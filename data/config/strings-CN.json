@@ -779,7 +779,8 @@
         "action_split": "- 分牌：将相同的两张牌分成两手(需要足够筹码)",
         "special_title": "特殊规则：",
         "blackjack_1": "- 21点(A + 10点牌)：赔率3:2",
-        "push_1": "- 平局：与庄家点数相同，返还下注"
+        "push_1": "- 平局：与庄家点数相同，返还下注",
+        "back_to_game": "返回游戏"
     },
     "arena_panel_rewards": {
         "header": "--- 奖励明细 ---",

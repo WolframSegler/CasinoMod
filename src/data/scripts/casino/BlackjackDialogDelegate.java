@@ -17,9 +17,8 @@ public class BlackjackDialogDelegate extends BaseGameDelegate implements Blackja
     protected final BlackjackHandler handler;
     protected BlackjackGame game;
 
-    protected BlackjackGame.Action pendingAction = null;
-    protected boolean pendingNewHand = false;
     protected boolean pendingLeave = false;
+    protected boolean pendingHowToPlay = false;
 
     public BlackjackDialogDelegate(BlackjackGame game, InteractionDialogAPI dialog,
             Map<String, MemoryAPI> memoryMap, Runnable onDismissCallback, BlackjackHandler handler) {
@@ -61,25 +60,11 @@ public class BlackjackDialogDelegate extends BaseGameDelegate implements Blackja
     }
 
     public void onPlayerAction(BlackjackGame.Action action) {
-        // FIXME the handler is always non null
-        if (handler != null) {
-            handler.processPlayerActionInPlace(action, this);
-            return;
-        }
-
-        pendingAction = action;
-        callbacks.dismissDialog();
+        handler.processPlayerActionInPlace(action, this);
     }
 
     public void onNewHand() {
-        // FIXME the handler is always non null
-        if (handler != null) {
-            handler.startNewHandInPlace(this);
-            return;
-        }
-
-        pendingNewHand = true;
-        callbacks.dismissDialog();
+        handler.startNewHandInPlace(this);
     }
 
     public void onLeave() {
@@ -88,32 +73,19 @@ public class BlackjackDialogDelegate extends BaseGameDelegate implements Blackja
     }
 
     public void onHowToPlay() {
-        // FIXME the handler is always non null
-        if (handler != null) {
-            handler.showHowToPlay(this);
-            return;
-        }
+        pendingHowToPlay = true;
         callbacks.dismissDialog();
     }
 
     public void onPlaceBet(int amount) {
-        // FIXME the handler is always non null
-        if (handler != null) {
-            handler.placeBetInPlace(amount, this);
-            return;
-        }
-        callbacks.dismissDialog();
-    }
-
-    public BlackjackGame.Action getPendingAction() {
-        return pendingAction;
-    }
-
-    public boolean getPendingNewHand() {
-        return pendingNewHand;
+        handler.placeBetInPlace(amount, this);
     }
 
     public boolean getPendingLeave() {
         return pendingLeave;
+    }
+
+    public boolean getPendingHowToPlay() {
+        return pendingHowToPlay;
     }
 }

@@ -136,7 +136,12 @@ public class HelpHandler {
         main.textPanel.addPara(Strings.get("blackjack_help.blackjack_1"));
         main.textPanel.addPara(Strings.get("blackjack_help.push_1"));
 
-        main.options.addOption(Strings.get("common.back"), "blackjack_play");
+        if (main.blackjack.getBlackjackGame() != null &&
+            main.blackjack.getBlackjackGame().getState().playerStack > 0) {
+            main.options.addOption(Strings.get("blackjack_help.back_to_game"), "blackjack_back_to_game");
+        } else {
+            main.options.addOption(Strings.get("common.back"), "blackjack_play");
+        }
     }
 
     public void showArenaHelp(String returnTo) {

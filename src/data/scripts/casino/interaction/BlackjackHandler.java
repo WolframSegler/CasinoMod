@@ -44,6 +44,7 @@ public class BlackjackHandler {
         });
         handlers.put("blackjack_resume_wait", option -> main.showMenu());
         handlers.put("blackjack_back_to_menu", option -> handleBackToMenu());
+        handlers.put("blackjack_back_to_game", option -> showBlackjackVisualPanel());
     }
 
     public void handle(String option) {
@@ -137,38 +138,13 @@ public class BlackjackHandler {
     private void handleBlackjackPanelDismissed() {
         if (currentDelegate == null) return;
 
-        if (currentDelegate.getPendingAction() != null) {
-            Action action = currentDelegate.getPendingAction();
-            processPlayerAction(action);
-            return;
-        }
-
-        if (currentDelegate.getPendingNewHand()) {
-            startNewHand();
+        if (currentDelegate.getPendingHowToPlay()) {
+            main.help.showBlackjackHelp();
             return;
         }
 
         if (currentDelegate.getPendingLeave()) {
             handleLeaveTable();
-        }
-    }
-
-    private void processPlayerAction(Action action) {
-        if (blackjackGame == null) return;
-
-        switch (action) {
-            case HIT -> blackjackGame.playerHit();
-            case STAND -> blackjackGame.playerStand();
-            case DOUBLE_DOWN -> blackjackGame.playerDoubleDown();
-            case SPLIT -> blackjackGame.playerSplit();
-        }
-
-        GameState state = blackjackGame.getGameState();
-
-        currentDelegate.refreshAfterStateChange(blackjackGame);
-
-        if (state == GameState.RESULT) {
-            handleResult();
         }
     }
 
@@ -346,6 +322,10 @@ public class BlackjackHandler {
         currentDelegate = null;
 
         main.showMenu();
+    }
+
+    public BlackjackGame getBlackjackGame() {
+        return blackjackGame;
     }
 
     public void processPlayerActionInPlace(Action action, BlackjackDialogDelegate delegate) {

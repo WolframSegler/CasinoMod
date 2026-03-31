@@ -72,8 +72,7 @@ public class PokerGame {
         startNewHand();
     }
     
-    @SuppressWarnings("unused")
-    private PokerGame(boolean forSuspend) {
+    private PokerGame(boolean marker) {
         ai = new SimplePokerAI();
         state = new PokerState();
         deck = new Deck(GameType.POKER);

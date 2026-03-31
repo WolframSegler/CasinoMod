@@ -644,14 +644,6 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    /**
-     * Again, the advance method gets called by the panel, which owns the position.
-     * So it always exists in this context.
-     * 
-     * @author WolframSegler
-     * TODO remove message after reading
-     */
-
     public final void advance(float amount) {
         for (int i = 0; i < 10; i++) {
             playerCardAnimations[i].advance(amount);

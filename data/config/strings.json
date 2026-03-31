@@ -859,7 +859,8 @@
         "action_split": "- Split: Split matching cards into two hands (if you have enough chips)",
         "special_title": "Special Rules:",
         "blackjack_1": "- Blackjack (Ace + 10-value): Pays 3:2",
-        "push_1": "- Push: Tie with dealer, bet returned"
+        "push_1": "- Push: Tie with dealer, bet returned",
+        "back_to_game": "Back to Game"
     },
     "arena_errors": {
         "overdraft_vip_only": "Overdraft requires VIP Pass subscription.",

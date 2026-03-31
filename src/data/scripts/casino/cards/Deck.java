@@ -56,5 +56,4 @@ public class Deck {
     }
 
     public final void shuffle() { Collections.shuffle(cards); }
-    public final int cardsRemaining() { return cards.size(); }
 }

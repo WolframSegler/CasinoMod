@@ -19,22 +19,13 @@ public class PokerDialogDelegate extends BaseGameDelegate implements PokerAction
     protected PokerGame game;
 
     protected boolean gameEnded = false;
-
-    protected PokerGame.Action pendingAction = null;
-    protected int pendingRaiseAmount = 0;
-    protected boolean pendingNextHand = false;
     protected boolean pendingSuspend = false;
     protected boolean pendingHowToPlay = false;
     protected boolean pendingFlipTable = false;
-    protected boolean pendingCleanLeave = false;
+
     protected String lastOpponentAction = "";
     protected String lastPlayerAction = "";
     protected String returnMessage = "";
-
-    public PokerDialogDelegate(PokerGame game, InteractionDialogAPI dialog,
-            Map<String, MemoryAPI> memoryMap, Runnable onDismissCallback) {
-        this(game, dialog, memoryMap, onDismissCallback, null);
-    }
 
     public PokerDialogDelegate(PokerGame game, InteractionDialogAPI dialog,
             Map<String, MemoryAPI> memoryMap, Runnable onDismissCallback, PokerHandler handler) {
@@ -109,16 +100,7 @@ public class PokerDialogDelegate extends BaseGameDelegate implements PokerAction
     }
 
     public void onPlayerAction(PokerGame.Action action, int raiseAmount) {
-        // FIXME handler is always non null
-        if (handler != null) {
-            handler.processPlayerActionInPlace(action, raiseAmount, this);
-            return;
-        }
-
-        pendingAction = action;
-        pendingRaiseAmount = raiseAmount;
-
-        callbacks.dismissDialog();
+        handler.processPlayerActionInPlace(action, raiseAmount, this);
     }
 
     public void setLastOpponentAction(String action) {
@@ -133,39 +115,17 @@ public class PokerDialogDelegate extends BaseGameDelegate implements PokerAction
         this.lastPlayerAction = action;
     }
 
-    public PokerGame.Action getPendingAction() {
-        return pendingAction;
-    }
-
-    public int getPendingRaiseAmount() {
-        return pendingRaiseAmount;
-    }
-
-    public boolean getPendingNextHand() {
-        return pendingNextHand;
-    }
-
     public void onNextHand() {
-        // FIXME handler is always non null
-        if (handler != null) {
-            handler.startNextHandInPlace(this);
-            return;
-        }
-
-        pendingNextHand = true;
-        pendingAction = null;
-        callbacks.dismissDialog();
+        handler.startNextHandInPlace(this);
     }
 
     public void onSuspend() {
         pendingSuspend = true;
-        pendingAction = null;
         callbacks.dismissDialog();
     }
 
     public void onHowToPlay() {
         pendingHowToPlay = true;
-        pendingAction = null;
         callbacks.dismissDialog();
     }
 
@@ -173,19 +133,12 @@ public class PokerDialogDelegate extends BaseGameDelegate implements PokerAction
         final boolean isShowdown = game != null && game.getState() != null &&
             game.getState().round == PokerGame.Round.SHOWDOWN;
 
-        // FIXME handler is always non null
-        if (handler != null && isShowdown) {
-            handler.handleCleanLeaveInPlace(this);
-            return;
-        }
-
         if (isShowdown) {
-            pendingCleanLeave = true;
+            handler.handleCleanLeaveInPlace(this);
         } else {
             pendingFlipTable = true;
+            callbacks.dismissDialog();
         }
-        pendingAction = null;
-        callbacks.dismissDialog();
     }
 
     public boolean getPendingSuspend() {
@@ -198,9 +151,5 @@ public class PokerDialogDelegate extends BaseGameDelegate implements PokerAction
 
     public boolean getPendingFlipTable() {
         return pendingFlipTable;
-    }
-
-    public boolean getPendingCleanLeave() {
-        return pendingCleanLeave;
     }
 }
