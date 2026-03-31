@@ -2,7 +2,7 @@ package data.scripts.casino.cards;
 
 import data.scripts.casino.Strings;
 
-public class CardUtils {
+public class RankDisplayUtils {
     public static String getRankName(int rankValue) {
         return switch (rankValue)
         {

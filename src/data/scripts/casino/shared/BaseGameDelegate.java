@@ -41,7 +41,6 @@ public abstract class BaseGameDelegate implements CustomVisualDialogDelegate {
 
     @Override
     public void advance(float amount) {
-        if (finished) return;
     }
 
     @Override

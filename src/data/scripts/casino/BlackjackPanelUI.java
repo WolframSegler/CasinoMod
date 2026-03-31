@@ -5,10 +5,6 @@ import java.awt.Color;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
-import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.SettingsAPI;
-import com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin;
-import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
 import com.fs.starfarer.api.ui.CustomPanelAPI;
@@ -16,22 +12,21 @@ import com.fs.starfarer.api.ui.Fonts;
 import com.fs.starfarer.api.ui.LabelAPI;
 import com.fs.starfarer.api.ui.PositionAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
-import com.fs.starfarer.api.ui.TooltipMakerAPI.ActionListenerDelegate;
 import com.fs.starfarer.api.ui.UIComponentAPI;
+import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
 
 import data.scripts.casino.cards.Card;
 import data.scripts.casino.cards.CardFlipAnimation;
-import data.scripts.casino.shared.CardGameUI;
+import data.scripts.casino.shared.BaseCardGamePanelUI;
+import data.scripts.casino.shared.CardRenderingUtils;
 import data.scripts.casino.BlackjackGame.Action;
 import data.scripts.casino.BlackjackGame.GameStateData;
 import data.scripts.casino.BlackjackGame.Hand;
 
-import static data.scripts.casino.shared.CardGameUI.*;
+import static data.scripts.casino.shared.CardRenderingUtils.*;
 
-public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
-    implements ActionListenerDelegate
-{
-    private static final SettingsAPI settings = Global.getSettings();
+public class BlackjackPanelUI extends BaseCardGamePanelUI<BlackjackGame> {
+
     private static final String BJ_BET = "bj_bet_";
     private static final String BJ_HIT = "bj_hit";
     private static final String BJ_STAND = "bj_stand";
@@ -48,10 +43,6 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
 
     protected final BlackjackActionCallback actionCallback;
     protected DialogCallbacks callbacks;
-    protected CustomPanelAPI panel;
-
-    protected BlackjackGame game;
-    protected boolean buttonsCreated = false;
 
     protected final CardFlipAnimation[] playerCardAnimations = new CardFlipAnimation[10];
     protected final CardFlipAnimation[] dealerCardAnimations = new CardFlipAnimation[10];
@@ -91,7 +82,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
     }
 
     public BlackjackPanelUI(BlackjackGame game, BlackjackActionCallback callback) {
-        this.game = game;
+        super(game);
         this.actionCallback = callback;
 
         for (int i = 0; i < 10; i++) {
@@ -100,17 +91,15 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    public final void init(CustomPanelAPI panel, DialogCallbacks callbacks) {
-        this.panel = panel;
+    @Override
+    public void init(CustomPanelAPI panel, DialogCallbacks callbacks) {
+        super.init(panel, callbacks);
         this.callbacks = callbacks;
-
-        callbacks.getPanelFader().setDurationOut(0.5f);
-
-        createButtonsInInit();
         createLabels();
     }
 
-    private void createButtonsInInit() {
+    @Override
+    protected void createButtonsInInit() {
         if (buttonsCreated) return;
         final PositionAPI pos = panel.getPosition();
 
@@ -261,7 +250,8 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    private void updateButtonVisibility() {
+    @Override
+    protected void updateButtonVisibility() {
         if (game == null) return;
 
         final GameStateData state = game.getState();
@@ -552,7 +542,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
         final float h = pos.getHeight();
         final float cx = pos.getCenterX();
 
-        CardGameUI.renderTableBackground(x, y, w, h, alphaMult);
+        CardRenderingUtils.renderTableBackground(x, y, w, h, alphaMult);
 
         if (game == null) return;
 
@@ -588,7 +578,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
             final Card card = hand.cards.get(i);
             final float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
             final CardFlipAnimation anim = i < playerCardAnimations.length ? playerCardAnimations[i] : null;
-            CardGameUI.renderCardAnimated(cardX, cardY, card, anim, alphaMult);
+            CardRenderingUtils.renderCardAnimated(cardX, cardY, card, anim, alphaMult);
         }
     }
 
@@ -614,7 +604,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
                 final float cardX = handX + i * (CARD_WIDTH + CARD_SPACING / 2f);
                 final int animIndex = h * 5 + i;
                 final CardFlipAnimation anim = animIndex < playerCardAnimations.length ? playerCardAnimations[animIndex] : null;
-                CardGameUI.renderCardAnimated(cardX, cardY, card, anim, alphaMult);
+                CardRenderingUtils.renderCardAnimated(cardX, cardY, card, anim, alphaMult);
             }
         }
     }
@@ -637,9 +627,9 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
 
             if (revealed || i > 0) {
                 CardFlipAnimation anim = i < dealerCardAnimations.length ? dealerCardAnimations[i] : null;
-                CardGameUI.renderCardAnimated(cardX, cardY, card, anim, alphaMult);
+                CardRenderingUtils.renderCardAnimated(cardX, cardY, card, anim, alphaMult);
             } else {
-                CardGameUI.renderCardFaceDown(cardX, cardY, alphaMult);
+                CardRenderingUtils.renderCardFaceDown(cardX, cardY, alphaMult);
             }
         }
     }
@@ -732,14 +722,7 @@ public class BlackjackPanelUI extends BaseCustomUIPanelPlugin
     }
 
     @Override
-    public void actionPerformed(Object input, Object source) {
-        if (source instanceof ButtonAPI btn) {
-            processAction(btn.getCustomData());
-        }
-        updateButtonVisibility();
-    }
-
-    private void processAction(Object data) {
+    protected void processAction(Object data) {
         if (data == null) return;
 
         if (data == BJ_HIT) {

@@ -7,10 +7,6 @@ import java.util.List;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
-import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.SettingsAPI;
-import com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin;
-import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
 import com.fs.starfarer.api.ui.CustomPanelAPI;
@@ -18,23 +14,21 @@ import com.fs.starfarer.api.ui.Fonts;
 import com.fs.starfarer.api.ui.LabelAPI;
 import com.fs.starfarer.api.ui.PositionAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
-import com.fs.starfarer.api.ui.TooltipMakerAPI.ActionListenerDelegate;
 import com.fs.starfarer.api.ui.UIComponentAPI;
+import com.fs.starfarer.api.campaign.CustomVisualDialogDelegate.DialogCallbacks;
 
 import data.scripts.casino.cards.Card;
 import data.scripts.casino.cards.CardFlipAnimation;
-import data.scripts.casino.cards.CardUtils;
-import data.scripts.casino.shared.CardGameUI;
+import data.scripts.casino.cards.RankDisplayUtils;
+import data.scripts.casino.shared.BaseCardGamePanelUI;
+import data.scripts.casino.shared.CardRenderingUtils;
 import data.scripts.casino.PokerGame.PokerState;
 import data.scripts.casino.PokerGame.Round;
 import data.scripts.casino.PokerGame.PokerGameLogic.HandScore;
 
-import static data.scripts.casino.shared.CardGameUI.*;
+import static data.scripts.casino.shared.CardRenderingUtils.*;
 
-public class PokerPanelUI extends BaseCustomUIPanelPlugin
-    implements ActionListenerDelegate
-{
-    private static final SettingsAPI settings = Global.getSettings();
+public class PokerPanelUI extends BaseCardGamePanelUI<PokerGame> {
 
     private static final String POKER_FOLD = "poker_fold";
     private static final String POKER_CHECK_CALL = "poker_check_call";
@@ -55,14 +49,10 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
     private static final Color COLOR_ROUND_SHOWDOWN = new Color(255, 200, 50);
 
     private final PokerActionCallback actionCallback;
-    private CustomPanelAPI panel;
 
-    private PokerGame game;
     private boolean waitingForOpponent = false;
     private float opponentThinkTimer = 0f;
     private static final float OPPONENT_THINK_DELAY = 0.8f;
-
-    private boolean buttonsCreated = false;
 
     private final CardFlipAnimation[] playerCardAnimations = new CardFlipAnimation[HAND_SIZE];
     private final CardFlipAnimation[] opponentCardAnimations = new CardFlipAnimation[HAND_SIZE];
@@ -146,7 +136,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
     }
 
     public PokerPanelUI(PokerGame game, PokerActionCallback callback) {
-        this.game = game;
+        super(game);
         this.actionCallback = callback;
 
         for (int i = 0; i < HAND_SIZE; i++) {
@@ -158,18 +148,15 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         }
     }
 
-    public final void init(CustomPanelAPI panel, DialogCallbacks callbacks) {
-        this.panel = panel;
-
+    @Override
+    public void init(CustomPanelAPI panel, DialogCallbacks callbacks) {
+        super.init(panel, callbacks);
         waitingForOpponent = false;
         opponentThinkTimer = 0f;
-
-        callbacks.getPanelFader().setDurationOut(0.5f);
-
-        createButtonsInInit();
     }
 
-    private void createButtonsInInit() {
+    @Override
+    protected void createButtonsInInit() {
         if (buttonsCreated) return;
 
         final PositionAPI pos =panel.getPosition();
@@ -223,7 +210,8 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         buttonsCreated = true;
     }
 
-    private void updateButtonVisibility() {
+    @Override
+    protected void updateButtonVisibility() {
         if (game == null) return;
         final PokerState state = game.getState();
 
@@ -598,15 +586,15 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
             return rankName;
         }
 
-        final String highCard = CardUtils.getRankName(score.tieBreakers.get(0));
+        final String highCard = RankDisplayUtils.getRankName(score.tieBreakers.get(0));
 
         return switch (score.rank) {
             case HIGH_CARD -> Strings.format("poker_hand_desc.high_card", highCard);
             case PAIR -> Strings.format("poker_hand_desc.pair_of", highCard);
             case TWO_PAIR -> {
                 if (score.tieBreakers.size() >= 2) {
-                    final String firstPair = CardUtils.getRankName(score.tieBreakers.get(0));
-                    final String secondPair = CardUtils.getRankName(score.tieBreakers.get(1));
+                    final String firstPair = RankDisplayUtils.getRankName(score.tieBreakers.get(0));
+                    final String secondPair = RankDisplayUtils.getRankName(score.tieBreakers.get(1));
                     yield Strings.format("poker_hand_desc.two_pair_and", firstPair, secondPair);
                 }
                 yield Strings.get("poker_hand_desc.two_pair");
@@ -616,8 +604,8 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
             case FLUSH -> Strings.format("poker_hand_desc.flush_high", highCard);
             case FULL_HOUSE -> {
                 if (score.tieBreakers.size() >= 2) {
-                    final String trips = CardUtils.getRankName(score.tieBreakers.get(0));
-                    final String pair = CardUtils.getRankName(score.tieBreakers.get(1));
+                    final String trips = RankDisplayUtils.getRankName(score.tieBreakers.get(0));
+                    final String pair = RankDisplayUtils.getRankName(score.tieBreakers.get(1));
                     yield Strings.format("poker_hand_desc.full_house_full", trips, pair);
                 }
                 yield Strings.get("poker_hand_desc.full_house");
@@ -677,7 +665,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         final float cx = pos.getCenterX();
         final float cy = pos.getCenterY();
 
-        CardGameUI.renderTableBackground(x, y, w, h, alphaMult);
+        CardRenderingUtils.renderTableBackground(x, y, w, h, alphaMult);
 
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -712,7 +700,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         for (int i = 0; i < numCards; i++) {
             final Card card = cards.get(i);
             final float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
-            CardGameUI.renderCardAnimated(cardX, cy - CARD_HEIGHT/2, card, communityCardAnimations[i], alphaMult);
+            CardRenderingUtils.renderCardAnimated(cardX, cy - CARD_HEIGHT/2, card, communityCardAnimations[i], alphaMult);
         }
     }
 
@@ -723,7 +711,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
         for (int i = 0; i < cards.size(); i++) {
             final Card card = cards.get(i);
             final float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
-            CardGameUI.renderCardAnimated(cardX, y, card, playerCardAnimations[i], alphaMult);
+            CardRenderingUtils.renderCardAnimated(cardX, y, card, playerCardAnimations[i], alphaMult);
         }
     }
 
@@ -735,9 +723,9 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
             final Card card = cards.get(i);
             final float cardX = startX + i * (CARD_WIDTH + CARD_SPACING);
             if (showCards) {
-                CardGameUI.renderCardAnimated(cardX, y, card, opponentCardAnimations[i], alphaMult);
+                CardRenderingUtils.renderCardAnimated(cardX, y, card, opponentCardAnimations[i], alphaMult);
             } else {
-                CardGameUI.renderCardFaceDown(cardX, y, alphaMult);
+                CardRenderingUtils.renderCardFaceDown(cardX, y, alphaMult);
             }
         }
     }
@@ -795,14 +783,7 @@ public class PokerPanelUI extends BaseCustomUIPanelPlugin
     }
 
     @Override
-    public final void actionPerformed(Object input, Object source) {
-        if (source instanceof ButtonAPI btn) {
-            processAction(btn.getCustomData());
-        }
-        updateButtonVisibility();
-    }
-
-    private void processAction(Object data) {
+    protected void processAction(Object data) {
         if (data == null) return;
 
         if (POKER_FOLD == data) {

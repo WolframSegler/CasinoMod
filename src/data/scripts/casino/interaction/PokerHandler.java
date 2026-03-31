@@ -7,6 +7,7 @@ import data.scripts.casino.CasinoVIPManager;
 import data.scripts.casino.shared.CasinoFinancials;
 import data.scripts.casino.PokerDialogDelegate;
 import data.scripts.casino.PokerGame;
+import data.scripts.casino.PokerOpponentAI;
 import data.scripts.casino.cards.Card;
 import data.scripts.casino.Strings;
 
@@ -444,7 +445,7 @@ private void startNextHand() {
         }
         
         if (state.currentPlayer == PokerGame.CurrentPlayer.OPPONENT) {
-             PokerGame.SimplePokerAI.AIResponse response = pokerGame.getOpponentAction();
+PokerOpponentAI.AIResponse response = pokerGame.getOpponentAction();
              
 switch(response.action) {
                   case CALL: 
@@ -457,7 +458,7 @@ switch(response.action) {
                       main.getTextPanel().addPara(Strings.get("poker_actions.opponent_folds_dot"), Color.CYAN); break;
               }
              
-if (response.action == PokerGame.SimplePokerAI.Action.FOLD && state.playerBet > state.opponentBet) {
+if (response.action == PokerOpponentAI.Action.FOLD && state.playerBet > state.opponentBet) {
                   pokerGame.getAI().trackAIFoldedToPlayerBet();
               }
              
@@ -1036,7 +1037,7 @@ private void endHand() {
         while (state.currentPlayer == PokerGame.CurrentPlayer.OPPONENT) {
             delegate.startOpponentTurn();
             
-            PokerGame.SimplePokerAI.AIResponse response = pokerGame.getOpponentAction();
+            PokerOpponentAI.AIResponse response = pokerGame.getOpponentAction();
             pokerGame.processOpponentAction(response);
             
             String actionText = formatOpponentActionText(response);
@@ -1050,7 +1051,7 @@ private void endHand() {
         }
     }
     
-    private String formatOpponentActionText(PokerGame.SimplePokerAI.AIResponse response) {
+    private String formatOpponentActionText(PokerOpponentAI.AIResponse response) {
         return switch (response.action) {
             case CALL -> Strings.get("poker_actions.opponent_calls");
             case RAISE -> Strings.format("poker_actions.opponent_raises_by", response.raiseAmount);

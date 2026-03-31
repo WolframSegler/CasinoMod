@@ -13,8 +13,8 @@ import data.scripts.casino.cards.Card;
 import data.scripts.casino.cards.CardFlipAnimation;
 import data.scripts.casino.cards.CardSprites;
 
-public final class CardGameUI {
-    private CardGameUI() {}
+public final class CardRenderingUtils {
+    private CardRenderingUtils() {}
 
     private static final SettingsAPI settings = Global.getSettings();
     private static final SpriteAPI POKER_TABLE = settings.getSprite("poker", "table");

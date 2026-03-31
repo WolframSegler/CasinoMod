@@ -35,6 +35,7 @@ public class CasinoConfig {
     public static int POKER_AI_MAX_RAISE_RANDOM_ADDITION;
     public static int POKER_AI_MIN_RAISE_VALUE;
     public static int POKER_MONTE_CARLO_SAMPLES;
+    public static boolean POKER_AI_DEBUG_LOGGING = true;
 
     // Gacha
     public static int GACHA_COST;
