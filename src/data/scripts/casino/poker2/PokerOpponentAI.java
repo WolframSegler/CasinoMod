@@ -2,6 +2,7 @@ package data.scripts.casino.poker2;
 
 import java.util.*;
 
+import data.scripts.casino.CasinoConfig;
 import data.scripts.casino.cards.Card;
 import data.scripts.casino.cards.Deck;
 import data.scripts.casino.cards.GameType;
