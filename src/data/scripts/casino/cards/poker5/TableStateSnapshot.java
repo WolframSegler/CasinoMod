@@ -51,18 +51,6 @@ public class TableStateSnapshot {
         return count;
     }
 
-    public int countPlayersActingBefore(Position myPosition) {
-        int count = 0;
-        for (OpponentInfo opp : opponents) {
-            if (!opp.isActive) continue;
-            Position oppPos = opp.getPosition(buttonSeat);
-            if (myPosition.isInPositionVs(oppPos)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     public OpponentInfo findLikelyRaiser() {
         OpponentInfo raiser = null;
         int maxBet = 0;

@@ -16,7 +16,6 @@ public enum Rank {
         {
             case POKER -> getPokerValue();
             case BLACKJACK -> getBlackjackValue();
-            default -> throw new IllegalArgumentException(game.toString());
         };
     }
 

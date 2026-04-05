@@ -7,7 +7,6 @@ import data.scripts.casino.CasinoVIPManager;
 import data.scripts.casino.shared.CasinoFinancials;
 import data.scripts.casino.cards.poker2.PokerDialogDelegate;
 import data.scripts.casino.cards.poker2.PokerGame;
-import data.scripts.casino.cards.poker2.PokerOpponentAI;
 import static data.scripts.casino.cards.pokerShared.PokerAICommon.InternalAction;
 import data.scripts.casino.cards.pokerShared.PokerAction;
 import data.scripts.casino.cards.pokerShared.PokerAICommon;

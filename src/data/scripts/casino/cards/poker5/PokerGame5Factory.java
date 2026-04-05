@@ -9,6 +9,7 @@ import data.scripts.casino.cards.pokerShared.PokerUtils;
 
 public class PokerGame5Factory {
 
+    @SuppressWarnings("unchecked")
     public static PokerGame5 restoreFromMemory(MemoryAPI mem) {
         if (!mem.contains("$ipc_poker5_pot")) return null;
 

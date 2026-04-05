@@ -287,10 +287,9 @@ public class PokerGame {
     }
     
     private void applyPlayerBet(int totalBet, int betAmount) {
-        int playerContribution = totalBet;
         int opponentCanMatch = state.opponentBet + state.opponentStack;
         
-        if (playerContribution > opponentCanMatch) {
+        if (totalBet > opponentCanMatch) {
             int actualBet = opponentCanMatch - state.playerBet;
             int excess = betAmount - actualBet;
             
@@ -357,12 +356,8 @@ public class PokerGame {
                 }
                 
                 applyOpponentBet(totalBet, raiseAmountActual);
-                
-                if (state.playerStack <= 0) {
-                    state.playerHasActed = true;
-                } else {
-                    state.playerHasActed = false;
-                }
+
+                state.playerHasActed = state.playerStack <= 0;
                 break;
         }
 
@@ -375,10 +370,9 @@ public class PokerGame {
     }
     
     private void applyOpponentBet(int totalBet, int betAmount) {
-        int opponentContribution = totalBet;
         int playerCanMatch = state.playerBet + state.playerStack;
         
-        if (opponentContribution > playerCanMatch) {
+        if (totalBet > playerCanMatch) {
             int actualBet = playerCanMatch - state.opponentBet;
             int excess = betAmount - actualBet;
             

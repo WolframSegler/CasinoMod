@@ -106,24 +106,12 @@ public class PokerGame5 {
         }
     }
 
-    public static String cardToString(Card card) {
-        return PokerUtils.cardToString(card);
-    }
-
-    public static Card stringToCard(String str) {
-        return PokerUtils.stringToCard(str);
-    }
-
     public PokerState5 getState() {
         return state;
     }
 
     public PokerAI5 getAI(int playerIndex) {
         return aiPlayers[playerIndex];
-    }
-
-    public int getButtonPosition() {
-        return state.buttonPosition;
     }
 
     public int getSBPosition() {
@@ -148,10 +136,6 @@ public class PokerGame5 {
             case 4 -> "UTG+1";
             default -> "P" + pos;
         };
-    }
-
-    public int getSmallBlindAmount() {
-        return bigBlindAmount / 2;
     }
 
     public int getBigBlindAmount() {
@@ -280,7 +264,6 @@ public class PokerGame5 {
 
     public int getMinRaiseAmount(int playerIndex) {
         int currentBet = getCurrentBet();
-        int callAmount = currentBet - state.bets[playerIndex];
         int minRaiseIncrement = Math.max(state.lastRaiseAmount, bigBlindAmount);
         return currentBet + minRaiseIncrement;
     }
@@ -319,6 +302,7 @@ public class PokerGame5 {
         state.activePlayers.remove(playerIndex);
     }
 
+    @SuppressWarnings("unused")
     private void processCheck(int playerIndex) {
     }
 
@@ -451,22 +435,23 @@ public class PokerGame5 {
     }
 
     private boolean checkBettingRoundComplete() {
-        int activeCount = 0;
         int targetBet = -1;
 
         for (int i = 0; i < NUM_PLAYERS; i++) {
-            if (canAct(i)) {
-                if (!state.hasActed[i]) return false;
-                activeCount++;
-                if (targetBet == -1) {
-                    targetBet = state.bets[i];
-                } else if (state.bets[i] != targetBet) {
-                    return false;
-                }
+            if (state.foldedPlayers.contains(i)) continue;
+
+            if (targetBet == -1) {
+                targetBet = state.bets[i];
+            } else if (state.bets[i] != targetBet) {
+                return false;
+            }
+
+            if (canAct(i) && !state.hasActed[i]) {
+                return false;
             }
         }
 
-        return activeCount <= 1;
+        return true;
     }
 
     private void advanceRound() {
@@ -518,20 +503,12 @@ public class PokerGame5 {
         calculateSidePots();
     }
 
-    public PokerAI5.AIResponse getAIPokerAction(int playerIndex) {
-        if (playerIndex < 0 || playerIndex >= NUM_PLAYERS) return null;
-        if (aiPlayers[playerIndex] == null) return null;
-        if (state.foldedPlayers.contains(playerIndex)) return null;
-
-        return aiPlayers[playerIndex].decideAction(playerIndex, state);
-    }
-
     public void processAIPokerAction(int playerIndex, PokerAI5.AIResponse response) {
         processPokerAction(playerIndex, response.action, response.raiseAmount);
     }
 
-    public int[] determineWinners() {
-        if (state.round != PokerRound.SHOWDOWN) return new int[0];
+    public void determineWinners() {
+        if (state.round != PokerRound.SHOWDOWN) return;
 
         List<PokerHandEvaluator.PlayerScore> scores = new ArrayList<>();
         for (int i = 0; i < NUM_PLAYERS; i++) {
@@ -541,7 +518,7 @@ public class PokerGame5 {
             }
         }
 
-        if (scores.isEmpty()) return new int[0];
+        if (scores.isEmpty()) return;
 
         scores.sort((a, b) -> b.score.compareTo(a.score));
 
@@ -574,7 +551,7 @@ public class PokerGame5 {
                 winnings.merge(w, share, Integer::sum);
             }
 
-            if (remainder > 0 && !potWinners.isEmpty()) {
+            if (remainder > 0) {
                 int closestToButton = potWinners.stream()
                     .min((a, b) -> Integer.compare(
                         (a - state.buttonPosition + NUM_PLAYERS) % NUM_PLAYERS,
@@ -592,27 +569,5 @@ public class PokerGame5 {
         state.lastPotWon = state.sidePots.stream().mapToInt(p -> p.amount).sum();
         state.pot = 0;
         state.sidePots.clear();
-
-        return state.winners;
-    }
-
-    public boolean isHandComplete() {
-        return state.round == PokerRound.SHOWDOWN && state.winners.length > 0;
-    }
-
-    public int countActivePlayers() {
-        int count = 0;
-        for (int i = 0; i < NUM_PLAYERS; i++) {
-            if (!state.foldedPlayers.contains(i)) count++;
-        }
-        return count;
-    }
-
-    public int countCanActPlayers() {
-        int count = 0;
-        for (int i = 0; i < NUM_PLAYERS; i++) {
-            if (canAct(i)) count++;
-        }
-        return count;
     }
 }
