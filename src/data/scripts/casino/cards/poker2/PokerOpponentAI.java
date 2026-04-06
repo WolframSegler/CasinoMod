@@ -28,24 +28,8 @@ public class PokerOpponentAI extends AbstractPokerAI {
     private float aggressionMeter = 0.5f;
     private final float[] aggressionHistory = new float[10];
     private int historyIndex = 0;
-    private int playerStyle = 0;
-    private int totalPlayerActions = 0;
-    private int totalRaises = 0;
-    private int totalCalls = 0;
-    private int vpipCount = 0;
-    private int pfrCount = 0;
 
     private boolean isInPosition = false;
-    
-    private int playerBetsWithoutShowdown = 0;
-    private int playerBetsTotal = 0;
-    private int consecutiveBluffsCaught = 0;
-    private int suspiciousModeHands = 0;
-    private boolean isSuspicious = false;
-    private int playerCheckRaises = 0;
-    private int handsSinceLastShowdown = 0;
-    private int timesBluffedByPlayer = 0;
-    private int largeBetsWithoutShowdown = 0;
     private boolean aiHasRaisedThisRound = false;
 
     public PokerOpponentAI() {
@@ -78,7 +62,7 @@ public class PokerOpponentAI extends AbstractPokerAI {
         
         float vpip = (float) vpipCount / handsPlayed;
         float pfr = (float) pfrCount / handsPlayed;
-        float af = totalCalls > 0 ? (float) totalRaises / totalCalls : totalRaises;
+        float af = totalPlayerCalls > 0 ? (float) totalPlayerRaises / totalPlayerCalls : totalPlayerRaises;
         
         float confidence = Math.min(handsPlayed * 0.03f, 0.3f);
         
@@ -150,67 +134,6 @@ public class PokerOpponentAI extends AbstractPokerAI {
         return Math.min(0.85f, baseStrength);
     }
     
-    private PokerAICommon.DeceptionMode selectDeceptionMode(float trueEquity, float perceivedStrength, boolean wetBoard) {
-        if (trueEquity > 0.70f && perceivedStrength < 0.40f) {
-            return PokerAICommon.DeceptionMode.TRAP;
-        }
-        
-        if (trueEquity > 0.65f && perceivedStrength < 0.50f && !narrative.hasInitiated) {
-            return PokerAICommon.DeceptionMode.TRAP;
-        }
-        
-        if (trueEquity < 0.35f && perceivedStrength > 0.50f) {
-            if (!shouldBeSuspicious()) {
-                return PokerAICommon.DeceptionMode.BLUFF_CONTINUATION;
-            }
-        }
-        
-        if (trueEquity < 0.40f && canPivotToBluff(wetBoard)) {
-            return PokerAICommon.DeceptionMode.BLUFF_INITIATE;
-        }
-        
-        if (trueEquity < 0.40f && wetBoard && narrative.type == PokerAICommon.NarrativeType.PASSIVE_DRAWING) {
-            return PokerAICommon.DeceptionMode.FLOAT_BLUFF;
-        }
-        
-        return PokerAICommon.DeceptionMode.HONEST;
-    }
-    
-    private float computeDeceptionEquity(PokerAICommon.DeceptionMode mode, float trueEquity, float perceivedStrength) {
-        return switch (mode) {
-            case TRAP -> perceivedStrength + 0.10f;
-            case BLUFF_CONTINUATION -> perceivedStrength;
-            case BLUFF_INITIATE -> 0.55f;
-            case FLOAT_BLUFF -> 0.60f;
-            case HONEST -> trueEquity;
-        };
-    }
-    
-    private boolean canPivotToBluff(boolean wetBoard) {
-        if (narrative.aggregateAggression > 0.5f) return false;
-        
-        if (narrative.historyCount == 0) return true;
-        
-        int lastIndex = (narrative.historyIndex - 1 + PokerAICommon.BettingNarrative.MAX_HISTORY) % PokerAICommon.BettingNarrative.MAX_HISTORY;
-        PokerAICommon.BettingAction last = narrative.history[lastIndex];
-        
-        if (last.action == PokerAICommon.InternalAction.CHECK) return true;
-        
-        if (last.action == PokerAICommon.InternalAction.CALL && wetBoard) return true;
-        
-        return false;
-    }
-
-
-    private String estimatePlayerRange() {
-        return switch (PokerAICommon.PlayerStyle.values()[playerStyle]) {
-            case PASSIVE -> "tight_range";
-            case AGGRESSIVE -> "wide_range";
-            case BALANCED -> "standard_range";
-            default -> "random";
-        };
-    }
-
     private PokerAICommon.AIResponse randomDeviationResponse(float equity, float potOdds, int stackSize, int potSize) {
         PokerAICommon.AIResponse deviation = switch (random.nextInt(4) + 1) {
             case 1 -> equity > potOdds * 0.8f ? 
@@ -781,49 +704,12 @@ public class PokerOpponentAI extends AbstractPokerAI {
             baseFoldProb -= 0.10f;
         }
 
-        return Math.max(0.1f, baseFoldProb);
+return Math.max(0.1f, baseFoldProb);
     }
 
     public void trackPlayerAction(boolean isRaise, boolean isFold, boolean isCheck, boolean isPreFlop, boolean putMoneyInPot) {
-        totalPlayerActions++;
-        
-        int actionType = isRaise ? 2 : (isFold ? 0 : (isCheck ? 3 : 1));
-        trackRecentAction(actionType);
-        
-        if (isRaise) {
-            totalRaises++;
-            if (isPreFlop) pfrCount++;
-            playerBetsTotal++;
-        } else if (!isFold && !isCheck) {
-            totalCalls++;
-            playerBetsTotal++;
-        }
-        
-        // Track check-raises
-        if (isRaise && !isPreFlop && !putMoneyInPot) {
-            playerCheckRaises++;
-        }
-        
-        // Track VPIP (Voluntarily Put $ In Pot) - excludes checking
-        if (putMoneyInPot) {
-            vpipCount++;
-        }
-        
+        super.trackPlayerAction(isRaise, isFold, isCheck, isPreFlop, putMoneyInPot);
         updateAggressionMeter(isRaise);
-        
-        if (handsPlayed > 3 && totalPlayerActions > 5) {
-            float vpip = (float) vpipCount / handsPlayed;
-            float pfr = (float) pfrCount / handsPlayed;
-            float af = totalCalls > 0 ? (float) totalRaises / totalCalls : totalRaises;
-            
-            if (vpip < 0.25f && pfr < 0.15f) {
-                playerStyle = 1;
-            } else if (vpip > 0.40f && af > 1.5f) {
-                playerStyle = 3;
-            } else {
-                playerStyle = 2;
-            }
-        }
     }
     
     public void trackAIFoldedToPlayerBet() {
@@ -838,55 +724,6 @@ public class PokerOpponentAI extends AbstractPokerAI {
         }
     }
 
-    public void trackPlayerShowdown(boolean playerWasBluffing) {
-        handsSinceLastShowdown = 0;
-        consecutiveBluffsCaught = 0;
-        largeBetsWithoutShowdown = 0;
-
-        if (playerWasBluffing) {
-            timesBluffedByPlayer++;
-            if (timesBluffedByPlayer >= 2) {
-                isSuspicious = true;
-                suspiciousModeHands = 3;
-            }
-        }
-    }
-    
-    private boolean shouldBeSuspicious() {
-        if (suspiciousModeHands > 0) {
-            return true;
-        }
-
-        if (playerBetsTotal > 5) {
-            float bluffSuccessRate = (float) playerBetsWithoutShowdown / playerBetsTotal;
-            if (bluffSuccessRate > 0.50f) {
-                return true;
-            }
-        }
-
-        if (largeBetsWithoutShowdown >= 2) {
-            return true;
-        }
-
-        if (handsPlayed > 3 && playerCheckRaises > handsPlayed / 3) {
-            return true;
-        }
-
-        return false;
-    }
-    
-    private boolean shouldMakeStubbornCall(float equity, int betToCall, int potSize) {
-        if (betToCall < potSize / 10 && equity > 0.45f) {
-            return true;
-        }
-        
-        if (isSuspicious && equity > 0.35f) {
-            return random.nextFloat() < 0.5f;
-        }
-        
-        return false;
-    }
-    
     public void newHandStarted(boolean aiIsDealer) {
         handsPlayed++;
         isInPosition = !aiIsDealer;
@@ -956,120 +793,6 @@ public class PokerOpponentAI extends AbstractPokerAI {
 
         float potGrowth = (float) potSize / Math.max(1, totalPotThisRound);
         return potGrowth > 4.0f && raisesThisRound == 1;
-    }
-
-    private PokerAICommon.OpponentHandEstimate estimateOpponentHand(String currentAction, int betAmount, int potSize) {
-        PokerAICommon.OpponentHandEstimate estimate = new PokerAICommon.OpponentHandEstimate();
-
-        switch (PokerAICommon.PlayerStyle.values()[playerStyle]) {
-            case PASSIVE:
-                estimate.premiumProbability = 0.08f;
-                estimate.strongProbability = 0.20f;
-                estimate.playableProbability = 0.27f;
-                estimate.weakProbability = 0.45f;
-                estimate.bluffProbability = 0.10f;
-                estimate.valueProbability = 0.90f;
-                break;
-            case AGGRESSIVE:
-                estimate.premiumProbability = 0.03f;
-                estimate.strongProbability = 0.12f;
-                estimate.playableProbability = 0.30f;
-                estimate.weakProbability = 0.55f;
-                estimate.bluffProbability = 0.35f;
-                estimate.valueProbability = 0.65f;
-                break;
-            case BALANCED:
-            default:
-                estimate.premiumProbability = 0.05f;
-                estimate.strongProbability = 0.15f;
-                estimate.playableProbability = 0.25f;
-                estimate.weakProbability = 0.55f;
-                estimate.bluffProbability = 0.20f;
-                estimate.valueProbability = 0.80f;
-                break;
-        }
-
-        // Adjust based on current action
-        float betToPotRatio = (float) betAmount / Math.max(1, potSize);
-
-        if (currentAction.equals("RAISE") || currentAction.equals("ALL_IN")) {
-            // Raises suggest stronger hands (with some bluffs)
-            if (betToPotRatio > 1.5f) {
-                // Large raise: very strong or very weak (polarized)
-                float polarizedBluffRate = estimate.bluffProbability * 1.5f;
-                estimate.premiumProbability *= 2.0f;
-                estimate.strongProbability *= 1.5f;
-                estimate.weakProbability *= 0.5f;
-                estimate.bluffProbability = Math.min(polarizedBluffRate, 0.40f);
-                estimate.valueProbability = 1.0f - estimate.bluffProbability;
-            } else if (betToPotRatio > 0.7f) {
-                // Medium raise: strong hands or semi-bluffs
-                estimate.premiumProbability *= 1.5f;
-                estimate.strongProbability *= 1.3f;
-                estimate.playableProbability *= 0.8f;
-                estimate.weakProbability *= 0.6f;
-                estimate.bluffProbability *= 0.8f;
-            } else {
-                // Small raise: wider range
-                estimate.premiumProbability *= 1.2f;
-                estimate.strongProbability *= 1.1f;
-                estimate.bluffProbability *= 1.1f;
-            }
-        } else if (currentAction.equals("CALL")) {
-            // Calls suggest medium strength or draws
-            estimate.premiumProbability *= 0.5f; // Would have raised premium
-            estimate.strongProbability *= 1.2f;
-            estimate.playableProbability *= 1.3f;
-            estimate.bluffProbability *= 0.5f; // Not a bluff if calling
-            estimate.valueProbability = 1.0f - estimate.bluffProbability;
-        }
-
-        // Adjust based on number of raises this round
-        if (raisesThisRound >= 2) {
-            // Multiple raises: ranges are stronger
-            estimate.premiumProbability *= 1.8f;
-            estimate.strongProbability *= 1.4f;
-            estimate.weakProbability *= 0.3f;
-            estimate.bluffProbability *= 0.4f; // Fewer bluffs in raise wars
-        } else if (raisesThisRound == 1) {
-            // Single raise: moderately stronger
-            estimate.premiumProbability *= 1.3f;
-            estimate.strongProbability *= 1.2f;
-            estimate.weakProbability *= 0.7f;
-        }
-
-        // Normalize probabilities
-        float totalHandProb = estimate.premiumProbability + estimate.strongProbability +
-                             estimate.playableProbability + estimate.weakProbability;
-        estimate.premiumProbability /= totalHandProb;
-        estimate.strongProbability /= totalHandProb;
-        estimate.playableProbability /= totalHandProb;
-        estimate.weakProbability /= totalHandProb;
-
-        return estimate;
-    }
-
-    /**
-     * Determines if AI should fold based on opponent hand estimate and our equity.
-     * Uses hand reading to make better fold decisions.
-     */
-    private boolean shouldFoldBasedOnHandReading(PokerAICommon.OpponentHandEstimate estimate, float ourEquity,
-                                                  int currentBetToCall, int potSize) {
-        if (estimate.getBluffProbability() > 0.40f && ourEquity > 0.35f) {
-            return false;
-        }
-
-        if (estimate.getValueProbability() > 0.60f && ourEquity < 0.50f) {
-            return true;
-        }
-
-        float strongAndPremiumProb = estimate.premiumProbability + estimate.strongProbability;
-        if (strongAndPremiumProb > 0.40f && ourEquity < 0.55f) {
-            return true;
-        }
-
-        float potOdds = (float) currentBetToCall / (potSize + currentBetToCall);
-        return ourEquity < potOdds * 0.9f;
     }
 
     private void updateAggressionMeter(boolean isRaise) {

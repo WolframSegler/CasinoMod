@@ -30,11 +30,23 @@ public abstract class AbstractPokerAI {
     protected int totalPlayerActions = 0;
     protected int totalPlayerRaises = 0;
     protected int totalPlayerCalls = 0;
-    protected int totalPlayerFolds = 0;
 
     protected int playerAllInCount = 0;
     protected int playerAllInOpportunities = 0;
     protected boolean playerIsAllInLoose = false;
+
+    protected int vpipCount = 0;
+    protected int pfrCount = 0;
+    protected int playerStyle = 0;
+    protected int playerBetsWithoutShowdown = 0;
+    protected int playerBetsTotal = 0;
+    protected int consecutiveBluffsCaught = 0;
+    protected int suspiciousModeHands = 0;
+    protected boolean isSuspicious = false;
+    protected int playerCheckRaises = 0;
+    protected int handsSinceLastShowdown = 0;
+    protected int timesBluffedByPlayer = 0;
+    protected int largeBetsWithoutShowdown = 0;
 
     protected AbstractPokerAI() {
         Arrays.fill(recentActions, 0);
@@ -396,5 +408,256 @@ public abstract class AbstractPokerAI {
         if (PokerAIUtils.shouldCallPreflopAllIn(handStrength, potOdds, bbStack)) return true;
         if (handStrength == PokerAIUtils.HandCategory.PLAYABLE && playerIsAllInLoose && potOdds >= 0.45f) return true;
         return false;
+    }
+
+    public void trackPlayerAction(boolean isRaise, boolean isFold, boolean isCheck, boolean isPreFlop, boolean putMoneyInPot) {
+        totalPlayerActions++;
+        
+        int actionType = isRaise ? 2 : (isFold ? 0 : (isCheck ? 3 : 1));
+        trackRecentAction(actionType);
+        
+        if (isRaise) {
+            totalPlayerRaises++;
+            if (isPreFlop) pfrCount++;
+            playerBetsTotal++;
+        } else if (!isFold && !isCheck) {
+            totalPlayerCalls++;
+            playerBetsTotal++;
+        }
+        
+        if (isRaise && !isPreFlop && !putMoneyInPot) {
+            playerCheckRaises++;
+        }
+        
+        if (putMoneyInPot) {
+            vpipCount++;
+        }
+        
+        updatePlayerStyle();
+    }
+
+    protected void updatePlayerStyle() {
+        if (handsPlayed > 3 && totalPlayerActions > 5) {
+            float vpip = (float) vpipCount / handsPlayed;
+            float pfr = (float) pfrCount / handsPlayed;
+            float af = totalPlayerCalls > 0 ? (float) totalPlayerRaises / totalPlayerCalls : totalPlayerRaises;
+            
+            if (vpip < 0.25f && pfr < 0.15f) {
+                playerStyle = 1;
+            } else if (vpip > 0.40f && af > 1.5f) {
+                playerStyle = 3;
+            } else {
+                playerStyle = 2;
+            }
+        }
+    }
+
+    protected String estimatePlayerRange() {
+        return switch (PokerAICommon.PlayerStyle.values()[playerStyle]) {
+            case PASSIVE -> "tight_range";
+            case AGGRESSIVE -> "wide_range";
+            case BALANCED -> "standard_range";
+            default -> "random";
+        };
+    }
+
+    public void trackPlayerShowdown(boolean playerWasBluffing) {
+        handsSinceLastShowdown = 0;
+        consecutiveBluffsCaught = 0;
+        largeBetsWithoutShowdown = 0;
+
+        if (playerWasBluffing) {
+            timesBluffedByPlayer++;
+            if (timesBluffedByPlayer >= 2) {
+                isSuspicious = true;
+                suspiciousModeHands = 3;
+            }
+        }
+    }
+
+    protected boolean shouldBeSuspicious() {
+        if (suspiciousModeHands > 0) {
+            return true;
+        }
+
+        if (playerBetsTotal > 5) {
+            float bluffSuccessRate = (float) playerBetsWithoutShowdown / playerBetsTotal;
+            if (bluffSuccessRate > 0.50f) {
+                return true;
+            }
+        }
+
+        if (largeBetsWithoutShowdown >= 2) {
+            return true;
+        }
+
+        if (handsPlayed > 3 && playerCheckRaises > handsPlayed / 3) {
+            return true;
+        }
+
+        return false;
+    }
+
+    protected boolean shouldMakeStubbornCall(float equity, int betToCall, int potSize) {
+        if (betToCall < potSize / 10 && equity > 0.45f) {
+            return true;
+        }
+        
+        if (isSuspicious && equity > 0.35f) {
+            return random.nextFloat() < 0.5f;
+        }
+        
+        return false;
+    }
+
+    protected PokerAICommon.DeceptionMode selectDeceptionMode(float trueEquity, float perceivedStrength, boolean wetBoard) {
+        if (trueEquity > 0.70f && perceivedStrength < 0.40f) {
+            return PokerAICommon.DeceptionMode.TRAP;
+        }
+        
+        if (trueEquity > 0.65f && perceivedStrength < 0.50f && !narrative.hasInitiated) {
+            return PokerAICommon.DeceptionMode.TRAP;
+        }
+        
+        if (trueEquity < 0.35f && perceivedStrength > 0.50f) {
+            if (!shouldBeSuspicious()) {
+                return PokerAICommon.DeceptionMode.BLUFF_CONTINUATION;
+            }
+        }
+        
+        if (trueEquity < 0.40f && canPivotToBluff(wetBoard)) {
+            return PokerAICommon.DeceptionMode.BLUFF_INITIATE;
+        }
+        
+        if (trueEquity < 0.40f && wetBoard && narrative.type == PokerAICommon.NarrativeType.PASSIVE_DRAWING) {
+            return PokerAICommon.DeceptionMode.FLOAT_BLUFF;
+        }
+        
+        return PokerAICommon.DeceptionMode.HONEST;
+    }
+    
+    protected float computeDeceptionEquity(PokerAICommon.DeceptionMode mode, float trueEquity, float perceivedStrength) {
+        return switch (mode) {
+            case TRAP -> perceivedStrength + 0.10f;
+            case BLUFF_CONTINUATION -> perceivedStrength;
+            case BLUFF_INITIATE -> 0.55f;
+            case FLOAT_BLUFF -> 0.60f;
+            case HONEST -> trueEquity;
+        };
+    }
+    
+    protected boolean canPivotToBluff(boolean wetBoard) {
+        if (narrative.aggregateAggression > 0.5f) return false;
+        
+        if (narrative.historyCount == 0) return true;
+        
+        int lastIndex = (narrative.historyIndex - 1 + PokerAICommon.BettingNarrative.MAX_HISTORY) % PokerAICommon.BettingNarrative.MAX_HISTORY;
+        PokerAICommon.BettingAction last = narrative.history[lastIndex];
+        
+        if (last.action == PokerAICommon.InternalAction.CHECK) return true;
+        
+        if (last.action == PokerAICommon.InternalAction.CALL && wetBoard) return true;
+        
+        return false;
+    }
+
+    protected PokerAICommon.OpponentHandEstimate estimateOpponentHand(String currentAction, int betAmount, int potSize) {
+        PokerAICommon.OpponentHandEstimate estimate = new PokerAICommon.OpponentHandEstimate();
+
+        switch (PokerAICommon.PlayerStyle.values()[playerStyle]) {
+            case PASSIVE:
+                estimate.premiumProbability = 0.08f;
+                estimate.strongProbability = 0.20f;
+                estimate.playableProbability = 0.27f;
+                estimate.weakProbability = 0.45f;
+                estimate.bluffProbability = 0.10f;
+                estimate.valueProbability = 0.90f;
+                break;
+            case AGGRESSIVE:
+                estimate.premiumProbability = 0.03f;
+                estimate.strongProbability = 0.12f;
+                estimate.playableProbability = 0.30f;
+                estimate.weakProbability = 0.55f;
+                estimate.bluffProbability = 0.35f;
+                estimate.valueProbability = 0.65f;
+                break;
+            case BALANCED:
+            default:
+                estimate.premiumProbability = 0.05f;
+                estimate.strongProbability = 0.15f;
+                estimate.playableProbability = 0.25f;
+                estimate.weakProbability = 0.55f;
+                estimate.bluffProbability = 0.20f;
+                estimate.valueProbability = 0.80f;
+                break;
+        }
+
+        float betToPotRatio = (float) betAmount / Math.max(1, potSize);
+
+        if (currentAction.equals("RAISE") || currentAction.equals("ALL_IN")) {
+            if (betToPotRatio > 1.5f) {
+                float polarizedBluffRate = estimate.bluffProbability * 1.5f;
+                estimate.premiumProbability *= 2.0f;
+                estimate.strongProbability *= 1.5f;
+                estimate.weakProbability *= 0.5f;
+                estimate.bluffProbability = Math.min(polarizedBluffRate, 0.40f);
+                estimate.valueProbability = 1.0f - estimate.bluffProbability;
+            } else if (betToPotRatio > 0.7f) {
+                estimate.premiumProbability *= 1.5f;
+                estimate.strongProbability *= 1.3f;
+                estimate.playableProbability *= 0.8f;
+                estimate.weakProbability *= 0.6f;
+                estimate.bluffProbability *= 0.8f;
+            } else {
+                estimate.premiumProbability *= 1.2f;
+                estimate.strongProbability *= 1.1f;
+                estimate.bluffProbability *= 1.1f;
+            }
+        } else if (currentAction.equals("CALL")) {
+            estimate.premiumProbability *= 0.5f;
+            estimate.strongProbability *= 1.2f;
+            estimate.playableProbability *= 1.3f;
+            estimate.bluffProbability *= 0.5f;
+            estimate.valueProbability = 1.0f - estimate.bluffProbability;
+        }
+
+        if (raisesThisRound >= 2) {
+            estimate.premiumProbability *= 1.8f;
+            estimate.strongProbability *= 1.4f;
+            estimate.weakProbability *= 0.3f;
+            estimate.bluffProbability *= 0.4f;
+        } else if (raisesThisRound == 1) {
+            estimate.premiumProbability *= 1.3f;
+            estimate.strongProbability *= 1.2f;
+            estimate.weakProbability *= 0.7f;
+        }
+
+        float totalHandProb = estimate.premiumProbability + estimate.strongProbability +
+                             estimate.playableProbability + estimate.weakProbability;
+        estimate.premiumProbability /= totalHandProb;
+        estimate.strongProbability /= totalHandProb;
+        estimate.playableProbability /= totalHandProb;
+        estimate.weakProbability /= totalHandProb;
+
+        return estimate;
+    }
+
+    protected boolean shouldFoldBasedOnHandReading(PokerAICommon.OpponentHandEstimate estimate, float ourEquity,
+                                                   int currentBetToCall, int potSize) {
+        if (estimate.getBluffProbability() > 0.40f && ourEquity > 0.35f) {
+            return false;
+        }
+
+        if (estimate.getValueProbability() > 0.60f && ourEquity < 0.50f) {
+            return true;
+        }
+
+        float strongAndPremiumProb = estimate.premiumProbability + estimate.strongProbability;
+        if (strongAndPremiumProb > 0.40f && ourEquity < 0.55f) {
+            return true;
+        }
+
+        float potOdds = (float) currentBetToCall / (potSize + currentBetToCall);
+        return ourEquity < potOdds * 0.9f;
     }
 }
