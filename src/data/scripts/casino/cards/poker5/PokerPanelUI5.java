@@ -163,7 +163,7 @@ public class PokerPanelUI5 extends BaseCardGamePanelUI<PokerGame5> {
         checkCallBtn.getPosition().inTL(0, 0);
         checkCallBtn.setOpacity(0f);
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 5; i++) {
             final ButtonAPI btn = btnTp.addButton("", POKER_RAISE_PREFIX + "0", RAISE_BUTTON_WIDTH, BUTTON_HEIGHT, 0f);
             btn.setQuickMode(true);
             btn.setCustomData(POKER_RAISE_PREFIX + "0");
@@ -370,7 +370,7 @@ public class PokerPanelUI5 extends BaseCardGamePanelUI<PokerGame5> {
         updateNextHandButton(state);
     }
 
-    private final int[] raiseOptionsBuffer = new int[4];
+    private final int[] raiseOptionsBuffer = new int[5];
 
     private float[] getRaiseOptions(PokerState5 state) {
         int count = 0;
@@ -393,6 +393,11 @@ public class PokerPanelUI5 extends BaseCardGamePanelUI<PokerGame5> {
         final int potBet = currentBet + pot;
         if (potBet > minRaise && potBet <= maxBet && PokerUIUtils.notContainsInt(raiseOptionsBuffer, count, potBet)) {
             raiseOptionsBuffer[count++] = potBet;
+        }
+
+        final int threePotBet = currentBet + pot * 3;
+        if (threePotBet > potBet && threePotBet <= maxBet && PokerUIUtils.notContainsInt(raiseOptionsBuffer, count, threePotBet)) {
+            raiseOptionsBuffer[count++] = threePotBet;
         }
 
         final int allInBet = playerBet + stack;

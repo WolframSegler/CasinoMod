@@ -186,7 +186,7 @@ public final class CardRenderingUtils {
         System.arraycopy(fillAmounts, 0, coloredAmounts, 0, numBars);
         
         int remainingBet = bet;
-        for (int i = 0; i < numBars && remainingBet > 0; i++) {
+        for (int i = numBars - 1; i >= 0 && remainingBet > 0; i--) {
             int deduct = Math.min(remainingBet, coloredAmounts[i]);
             whiteAmounts[i] = deduct;
             coloredAmounts[i] -= deduct;
@@ -227,12 +227,12 @@ public final class CardRenderingUtils {
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         setColorGL(STACK_BAR_BG, alphaMult);
         
-        renderCurvedBarShape(x, y, STACK_BAR_MAX_HEIGHT);
+        renderCurvedBarShape(x, y);
         
         GL11.glColor4f(1f, 1f, 1f, 1f);
     }
     
-    private static void renderCurvedBarShape(float x, float y, float height) {
+    private static void renderCurvedBarShape(float x, float y) {
         int segments = 10;
         float segmentWidth = STACK_BAR_WIDTH / segments;
         
@@ -242,7 +242,7 @@ public final class CardRenderingUtils {
             float normalizedPos = i / (float) segments;
             float curveOffset = SMILE_CURVE_DEPTH * 4f * normalizedPos * (1f - normalizedPos);
             float topY = y - curveOffset;
-            float bottomY = y + height + curveOffset;
+            float bottomY = y + STACK_BAR_MAX_HEIGHT + curveOffset;
             
             GL11.glVertex2f(segX, topY);
             GL11.glVertex2f(segX, bottomY);
@@ -272,7 +272,7 @@ public final class CardRenderingUtils {
         setColorGL(STACK_BAR_BG, alphaMult);
         for (int i = 0; i < numGaps; i++) {
             float gapY = y + CHIP_HEIGHT + i * CHIP_SEGMENT_HEIGHT;
-            renderSmileCurvedGap(x, gapY, STACK_BAR_WIDTH, CHIP_GAP, SMILE_CURVE_DEPTH);
+            renderSmileCurvedGap(x, gapY);
         }
 
         GL11.glColor4f(1f, 1f, 1f, 1f);
@@ -296,22 +296,21 @@ public final class CardRenderingUtils {
         GL11.glEnd();
     }
 
-    private static void renderSmileCurvedGap(float x, float y, float width, float gapHeight, float curveDepth) {
+    private static void renderSmileCurvedGap(float x, float y) {
         int segments = 10;
-        float segmentWidth = width / segments;
+        float segmentWidth = STACK_BAR_WIDTH / segments;
         
         for (int i = 0; i < segments; i++) {
             float segX = x + i * segmentWidth;
             float normalizedPos = (i + 0.5f) / segments;
-            float curveOffset = curveDepth * 4f * normalizedPos * (1f - normalizedPos);
+            float curveOffset = SMILE_CURVE_DEPTH * 4f * normalizedPos * (1f - normalizedPos);
             float segY = y - curveOffset;
-            float segHeight = gapHeight;
             
             GL11.glBegin(GL11.GL_QUADS);
             GL11.glVertex2f(segX, segY);
             GL11.glVertex2f(segX + segmentWidth, segY);
-            GL11.glVertex2f(segX + segmentWidth, segY + segHeight);
-            GL11.glVertex2f(segX, segY + segHeight);
+            GL11.glVertex2f(segX + segmentWidth, segY + CHIP_GAP);
+            GL11.glVertex2f(segX, segY + CHIP_GAP);
             GL11.glEnd();
         }
     }

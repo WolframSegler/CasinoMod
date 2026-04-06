@@ -19,6 +19,7 @@ public class HelpHandler {
     private void initializeHandlers() {
         handlers.put("how_to_play_main", option -> showGeneralHelp());
         handlers.put("how_to_poker", option -> showPokerHelp());
+        handlers.put("how_to_poker5_menu", option -> showPokerHelp("play5"));
         handlers.put("how_to_blackjack", option -> showBlackjackHelp());
         handlers.put("how_to_arena", option -> showArenaHelp("arena_lobby"));
         handlers.put("how_to_gacha", option -> showGachaHelp());

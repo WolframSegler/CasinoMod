@@ -1466,7 +1466,7 @@ public class ArenaPanelUI extends BaseCustomUIPanelPlugin
         } else if (rewardBreakdown != null) {
             // Don't show "Battle Complete!" - keep empty
             resultLabel.setText("");
-        } else if (winnerIndex >= 0 && winnerIndex < combatants.size()) {
+        } else if (winnerIndex >= 0 && winnerIndex < Objects.requireNonNull(combatants).size()) {
             SpiralGladiator winner = combatants.get(winnerIndex);
             resultLabel.setText(Strings.format("arena_panel_rewards.winner_reward", winner.hullName, totalReward));
             resultLabel.setColor(Color.GREEN);

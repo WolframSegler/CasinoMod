@@ -87,7 +87,7 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
         int betToCall = table.getBetToCall(currentBet);
         int opponentCount = table.getActiveOpponentCount();
 
-        if (table.communityCards.isEmpty()) {
+        if (table.communityCards().isEmpty()) {
             return preFlopDecision(table, betToCall, opponentCount);
         } else {
             return postFlopDecision(table, betToCall, opponentCount);
@@ -101,12 +101,12 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
         float adjustedEquity = adjustEquityForPosition(equity, PokerRound.PREFLOP);
         float positionThreshold = getPositionThreshold();
 
-        int bigBlind = table.pot / 6;
+        int bigBlind = table.pot() / 6;
         float bbStack = bigBlind > 0 ? (float) stack / bigBlind : stack;
 
         if (bbStack < 15 && betToCall > 0) {
-            PokerAICommon.AIResponse result = shortStackDecision(adjustedEquity, betToCall, table.pot, bbStack);
-            recordBettingNarrative(PokerRound.PREFLOP, result.action, result.raiseAmount, table.pot, false);
+            PokerAICommon.AIResponse result = shortStackDecision(adjustedEquity, betToCall, table.pot(), bbStack);
+            recordBettingNarrative(PokerRound.PREFLOP, result.action, result.raiseAmount, table.pot(), false);
             return result;
         }
 
@@ -122,14 +122,14 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
                 decision = CHECK_RESPONSE;
             }
         } else {
-            float potOdds = (float) betToCall / (table.pot + betToCall);
+            float potOdds = (float) betToCall / (table.pot() + betToCall);
 
             if (betToCall <= bigBlind) {
                 float threeBetThreshold = 0.60f;
                 
                 TableStateSnapshot.OpponentInfo raiser = table.findLikelyRaiser();
                 if (raiser != null) {
-                    Position raiserPosition = raiser.getPosition(table.buttonSeat);
+                    Position raiserPosition = raiser.getPosition(table.buttonSeat());
                     if (position.isInPositionVs(raiserPosition)) {
                         threeBetThreshold = 0.55f;
                     }
@@ -157,7 +157,7 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
                 } else {
                     trackPlayerAllIn(false);
 
-                    float evCall = PokerAIUtils.calculateCallEV(adjustedEquity, table.pot, betToCall);
+                    float evCall = PokerAIUtils.calculateCallEV(adjustedEquity, table.pot(), betToCall);
                     float evFold = -committedThisRound;
 
                     if (adjustedEquity < positionThreshold && potOdds > adjustedEquity) {
@@ -166,8 +166,8 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
                         } else {
                             decision = FOLD_RESPONSE;
                         }
-                    } else if (adjustedEquity > 0.60f && !shouldAvoidRaiseSpiral(stack, table.pot)) {
-                        int raiseSize = calculateRaiseSize(table.pot, betToCall);
+                    } else if (adjustedEquity > 0.60f && !shouldAvoidRaiseSpiral(stack, table.pot())) {
+                        int raiseSize = calculateRaiseSize(table.pot(), betToCall);
                         decision = new PokerAICommon.AIResponse(PokerAICommon.InternalAction.RAISE, raiseSize);
                     } else if (evCall > evFold) {
                         decision = CALL_RESPONSE;
@@ -180,7 +180,7 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
 
         applyPersonalityToRaise(decision, adjustedEquity, stack);
         boolean wasInitiator = decision.action == PokerAICommon.InternalAction.RAISE && betToCall == 0;
-        recordBettingNarrative(PokerRound.PREFLOP, decision.action, decision.raiseAmount, table.pot, wasInitiator);
+        recordBettingNarrative(PokerRound.PREFLOP, decision.action, decision.raiseAmount, table.pot(), wasInitiator);
 
         return decision;
     }
@@ -188,18 +188,18 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
     private PokerAICommon.AIResponse postFlopDecision(TableStateSnapshot table, int betToCall, int opponentCount) {
         updateProfile();
 
-        float trueEquity = equityCalculator.calculateMultiWayEquity(holeCards, table.communityCards, opponentCount).getTotalEquity();
-        float adjustedEquity = adjustEquityForPosition(trueEquity, table.round);
+        float trueEquity = equityCalculator.calculateMultiWayEquity(holeCards, table.communityCards(), opponentCount).getTotalEquity();
+        float adjustedEquity = adjustEquityForPosition(trueEquity, table.round());
 
-        float impliedOddsBonus = calculateImpliedOddsBonus(holeCards, table.communityCards, trueEquity, opponentCount);
+        float impliedOddsBonus = calculateImpliedOddsBonus(holeCards, table.communityCards(), trueEquity, opponentCount);
         adjustedEquity += impliedOddsBonus;
 
-        boolean wetBoard = PokerAIUtils.isWetBoard(table.communityCards);
+        boolean wetBoard = PokerAIUtils.isWetBoard(table.communityCards());
 
         float evFold = -committedThisRound;
-        float evCall = PokerAIUtils.calculateCallEV(adjustedEquity, table.pot, betToCall);
+        float evCall = PokerAIUtils.calculateCallEV(adjustedEquity, table.pot(), betToCall);
 
-        int[] raiseSizes = calculatePostFlopRaiseSizes(table.pot, wetBoard, adjustedEquity, position.isLatePosition());
+        int[] raiseSizes = calculatePostFlopRaiseSizes(table.pot(), wetBoard, adjustedEquity, position.isLatePosition());
 
         float bestRaiseEV = Float.NEGATIVE_INFINITY;
         int bestRaiseSize = 0;
@@ -216,16 +216,16 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
                 if (raiseSize > stack - betToCall) continue;
 
                 float foldProb = foldProbs[i];
-                float raiseEV = PokerAIUtils.calculateRaiseEVMultiWay(adjustedEquity, table.pot, betToCall, raiseSize, foldProb, opponentCount);
+                float raiseEV = PokerAIUtils.calculateRaiseEVMultiWay(adjustedEquity, table.pot(), betToCall, raiseSize, foldProb, opponentCount);
 
                 if (adjustedEquity < 0.45f) {
-                    float bluffEV = PokerAIUtils.calculateBluffEVMultiWay(foldProb, table.pot, raiseSize, opponentCount);
+                    float bluffEV = PokerAIUtils.calculateBluffEVMultiWay(foldProb, table.pot(), raiseSize, opponentCount);
                     
                     int playersActingAfterMe = table.countPlayersActingAfter(position);
                     if (playersActingAfterMe == 0) {
-                        bluffEV += 0.04f * table.pot;
+                        bluffEV += 0.04f * table.pot();
                     } else if (playersActingAfterMe == 1) {
-                        bluffEV += 0.02f * table.pot;
+                        bluffEV += 0.02f * table.pot();
                     }
                     
                     raiseEV = Math.max(raiseEV, bluffEV);
@@ -240,13 +240,13 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
 
         if (wetBoard) {
             if (adjustedEquity > 0.70f) {
-                bestRaiseEV += 0.05f * table.pot;
+                bestRaiseEV += 0.05f * table.pot();
             } else if (adjustedEquity < 0.50f) {
-                evCall -= 0.05f * table.pot;
+                evCall -= 0.05f * table.pot();
             }
         } else {
             if (adjustedEquity < 0.45f) {
-                bestRaiseEV += 0.03f * table.pot;
+                bestRaiseEV += 0.03f * table.pot();
             }
         }
 
@@ -254,7 +254,7 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
         evCall = applyPersonalityEVAdjustment(evCall, PokerAICommon.InternalAction.CALL);
         bestRaiseEV = applyPersonalityEVAdjustment(bestRaiseEV, PokerAICommon.InternalAction.RAISE);
 
-        if (shouldAvoidRaiseSpiral(stack, table.pot)) {
+        if (shouldAvoidRaiseSpiral(stack, table.pot())) {
             bestRaiseEV = Float.NEGATIVE_INFINITY;
         }
 
@@ -273,15 +273,15 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
         }
 
         if (random.nextFloat() < 0.10f) {
-            float potOdds = betToCall > 0 ? (float) betToCall / (table.pot + betToCall) : 0f;
-            PokerAICommon.AIResponse deviation = randomDeviation(adjustedEquity, potOdds, stack, table.pot);
+            float potOdds = betToCall > 0 ? (float) betToCall / (table.pot() + betToCall) : 0f;
+            PokerAICommon.AIResponse deviation = randomDeviation(adjustedEquity, potOdds, stack, table.pot());
             if (deviation.action != finalDecision.action) {
                 return deviation;
             }
         }
 
         boolean wasInitiator = finalDecision.action == PokerAICommon.InternalAction.RAISE && betToCall == 0;
-        recordBettingNarrative(table.round, finalDecision.action, finalDecision.raiseAmount, table.pot, wasInitiator);
+        recordBettingNarrative(table.round(), finalDecision.action, finalDecision.raiseAmount, table.pot(), wasInitiator);
 
         return finalDecision;
     }
@@ -319,7 +319,7 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
         float foldProb = 0f;
         int activeCount = 0;
 
-        for (TableStateSnapshot.OpponentInfo opp : table.opponents) {
+        for (TableStateSnapshot.OpponentInfo opp : table.opponents()) {
             if (!opp.isActive || opp.seatIndex == this.seatIndex) continue;
 
             float baseFoldProb = switch (opp.personality) {
@@ -328,7 +328,7 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
                 case CALCULATED -> 0.30f;
             };
 
-            float potOddsForOpp = (betSize - opp.currentBet) / (float) (table.pot + betSize);
+            float potOddsForOpp = (betSize - opp.currentBet) / (float) (table.pot() + betSize);
             if (potOddsForOpp > 0.5f) {
                 baseFoldProb += 0.15f;
             } else if (potOddsForOpp < 0.25f) {
@@ -339,7 +339,7 @@ public class MultiPlayerPokerOpponentAI extends AbstractPokerAI implements Poker
                 baseFoldProb *= 0.7f;
             }
 
-            Position oppPosition = opp.getPosition(table.buttonSeat);
+            Position oppPosition = opp.getPosition(table.buttonSeat());
             if (this.position.isInPositionVs(oppPosition)) {
                 baseFoldProb += 0.08f;
             } else if (oppPosition.isInPositionVs(this.position)) {
